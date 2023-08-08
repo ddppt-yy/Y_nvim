@@ -10,6 +10,9 @@ require("bufferline").setup {
             text = "File Explorer",
             highlight = "Directory",
             text_align = "left"
-        }}
+        }},
+        numbers = function(opts)
+            return string.format('%s|%s', opts.lower(opts.ordinal), opts.id)
+        end,
     }
 }
