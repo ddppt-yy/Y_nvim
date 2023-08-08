@@ -112,6 +112,7 @@ alias ....='cd ../../..'
 alias clc="clear"
 alias cp="cp -i"
 alias g="vim "
+alias n="nvim "
 alias gd='vimdiff'
 alias git_head='git reset --hard origin/master'
 alias grep='grep --color=auto --exclude-dir={.bzr,CVS,.git,.hg,.svn}'

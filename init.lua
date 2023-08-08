@@ -1,1 +1,8 @@
 require('options')
+--require('keymap')
+require('plugins.plugins_setup')
+require('plugins.lualine')
+require('plugins.nvim-tree')
+require('plugins.treesitter')
+require('plugins.lsp')
+require('colorscheme')
