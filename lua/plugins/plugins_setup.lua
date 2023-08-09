@@ -11,6 +11,7 @@ end
 
 local packer_bootstrap = ensure_packer()
 
+-- open this file will auto updata plugins
 vim.cmd([[
     augroup pack_user_config
         autocmd!
@@ -56,8 +57,17 @@ return require('packer').startup(function(use)
     use "hrsh7th/cmp-nvim-lsp"
     use "L3MON4D3/LuaSnip" -- snippets引擎，不装这个自动补全会出问题
     use "saadparwaiz1/cmp_luasnip"
-    use "rafamadriz/friendly-snippets"
     use "hrsh7th/cmp-path" -- 文件路径
+    use {'hrsh7th/cmp-buffer'}
+    use {'hrsh7th/cmp-cmdline'}
+    -- vsnip
+    use {'hrsh7th/cmp-vsnip'}
+    use {'hrsh7th/vim-vsnip'}
+    use {'rafamadriz/friendly-snippets'}
+    -- lspkind
+    use {'onsails/lspkind-nvim'}
+
+
 
     use "numToStr/Comment.nvim" -- gcc和gc注释
     use "windwp/nvim-autopairs" -- 自动补全括号
@@ -69,6 +79,10 @@ return require('packer').startup(function(use)
         'nvim-telescope/telescope.nvim', tag = '0.1.1',  -- 文件检索
         requires = { {'nvim-lua/plenary.nvim'} }
     }
+
+    use{"glepnir/lspsaga.nvim"}
+
+    use {'simrat39/symbols-outline.nvim'}
 
 
     if packer_bootstrap then
