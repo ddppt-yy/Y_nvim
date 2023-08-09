@@ -26,3 +26,6 @@ require("nvim-tree").setup({
 
 vim.api.nvim_set_keymap("n", "<F2>", ":NvimTreeToggle<CR>", {noremap = true, silent = true})
 
+-- vim.cmd([[    -- open this will not open dir.
+--   autocmd BufEnter * ++nested if winnr('$') == 1 && bufname() == 'NvimTree_' . tabpagenr() | quit | endif
+-- ]])

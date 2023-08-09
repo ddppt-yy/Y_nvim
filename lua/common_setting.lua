@@ -22,6 +22,22 @@
 -- open mouse in any mode
 vim.opt.mouse:append("a")
 
+-- 启用每行超过80列的字符提示（字体变蓝并加下划线），不启用就注释掉
+--vim.cmd([[au BufWinEnter * let w:m2=matchadd('Underlined', '\%>' . 80 . 'v.\+', -1)]])
+vim.opt.colorcolumn = "100"
+
+vim.opt.cursorline      = true                         --突出显示当前行
+vim.opt.cursorcolumn    = true                         --突出显示当前行
+
+vim.opt.writebackup     = true                         --保存文件前建立备份，保存成功后删除该备份
+vim.opt.backup          = false                        --设置无备份文件
+vim.opt.swapfile        = false
+
+-- -- smaller updatetime
+-- vim.o.updatetime = 300
+-- -- 设置 timeoutlen 为等待键盘快捷键连击时间500毫秒，可根据需要设置
+-- vim.o.timeoutlen = 500
+
 -- Sets how many lines of history VIM has to remember
 vim.opt.history=700
 
@@ -32,18 +48,23 @@ vim.opt.filetype.indent=true
 -- Set to auto read when a file is changed from the outside
 vim.opt.autoread=true
 
--- With a map leader it's possible to do extra key combinations
--- like <leader>w saves the current file
-vim.mapleader = ","
-vim.g.mapleader = ","
+-- 自动补全不自动选中
+vim.g.completeopt = "menu,menuone,noselect,noinsert"
+-- 补全增强
+vim.opt.wildmenu = true
+-- Dont' pass messages to |ins-completin menu|
+vim.opt.shortmess = vim.o.shortmess .. 'c'
+-- 补全最多显示10行
+vim.opt.pumheight = 10
+
 --BLOCK_END
 --""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""
 -- => VIM user interface
 --""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""
 --BLOCK_BEGIN
 -- Set 7 lines to the cursor - when moving vertically using j/k
-vim.opt.scrolloff=7
-
+vim.opt.scrolloff=8
+vim.opt.sidescrolloff = 8
 -- Turn on the WiLd menu
 vim.opt.wildmenu=true
 
@@ -118,6 +139,11 @@ vim.opt.splitbelow=true
 -- 256 colors
 vim.opt.termguicolors=true
 
+-- 不可见字符的显示，这里只把空格显示为一个◇
+vim.o.list = true
+vim.o.listchars = "space:◇"
+vim.opt.listchars:append "eol:↴"
+
 -- add space column in left for debug or plugins
 vim.opt.signcolumn="yes" 
 
@@ -142,6 +168,8 @@ vim.opt.smarttab=true
 -- 1 tab == 4 spaces
 vim.opt.shiftwidth=4
 vim.opt.tabstop=4
+vim.opt.softtabstop=4
+vim.opt.shiftround = true
 
 -- Linebreak on 500 characters
 vim.opt.lbr=true
@@ -150,8 +178,8 @@ vim.opt.tw=500
 -- Auto indent
 -- Smart indent
 -- Wrap lines
-vim.opt.ai   =true
-vim.opt.si   =true
+vim.opt.autoindent  = true
+vim.opt.smartindent = true
 vim.opt.wrap =true
 
 --BLOCK_END
@@ -163,53 +191,14 @@ vim.opt.wrap =true
 -- Super useful! From an idea by Michael Naumann
 -- vnoremap <silent> * :call VisualSelection('f')<CR>
 -- vnoremap <silent> # :call VisualSelection('b')<CR>
-vim.keymap.set('v', '*',  ':call VisualSelection(\'f\')<CR>')
-vim.keymap.set('v', '#',  ':call VisualSelection(\'b\')<CR>')
+-- keymaps.lua
 
 --BLOCK_END
 --""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""
 -- => Moving around, tabs, windows and buffers
 --""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""
 --BLOCK_BEGIN
--- Treat long lines as break lines (useful when moving around in them)
-vim.keymap.set('n', 'j',  'gj')
-vim.keymap.set('n', 'k',  'gk')
-
--- Map <Space> to / (search) and Ctrl-<Space> to ? (backwards search)
-vim.keymap.set('n', '<space>',  '/')
---map <c-space> ? --TODO
-
--- Disable highlight when <leader><cr> is pressed
-vim.keymap.set('n', '<leader><cr>',  ':noh<cr>')
-
--- Smart way to move between windows
-vim.keymap.set('n', '<C-J>',  '<C-W>j')
-vim.keymap.set('n', '<C-K>',  '<C-W>k')
-vim.keymap.set('n', '<C-H>',  '<C-W>h')
-vim.keymap.set('n', '<C-L>',  '<C-W>l')
-vim.keymap.set('n', '<C-Down>',  '<C-W>j')
-vim.keymap.set('n', '<C-Up>',  '<C-W>k')
-vim.keymap.set('n', '<C-Left>',  '<C-W>h')
-vim.keymap.set('n', '<C-Right>',  '<C-W>l')
-
--- Close the current buffer
-vim.keymap.set('n', '<leader>bd',  ':Bclose<cr>')
-
--- Close all the buffers
-vim.keymap.set('n', '<leader>ba',  ':1,$ bd!<cr>') --https://github.com/neovim/neovim/issues/2600
-
--- Useful mappings for managing tabs
-vim.keymap.set('n', '<leader>tn',  ':tabnew<cr>')
-vim.keymap.set('n', '<leader>to',  ':tabonly<cr>')
-vim.keymap.set('n', '<leader>tc',  ':tabclose<cr>')
-vim.keymap.set('n', '<leader>tm',  ':tabmove')
-
--- Opens a new tab with the current buffer's path
--- Super useful when editing files in the same directory
-vim.keymap.set('n', '<leader>te',  ':tabedit <c-r>=expand("%:p:h")<cr>/')
-
--- Switch CWD to the directory of the open buffer
-vim.keymap.set('n', '<leader>cd',  ':cd %:p:h<cr>:pwd<cr>')
+-- keymaps
 
 -- Specify the behavior when switching between buffers 
 --try
@@ -256,21 +245,7 @@ vim.opt.statusline = "[%n][%{&fenc!=''?&fenc:&enc}:%{&ff}] %r%F%m%r%h %w [%b 0x%
 -- => Editing mappings
 --""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""
 --BLOCK_BEGIN
--- Remap VIM 0 to first non-blank character
-vim.keymap.set('n', '0',  '^')
-
--- Move a line of text using ALT+[jk] or Comamnd+[jk] on mac
-vim.keymap.set('n', '<M-j>',  'mz:m+<cr>`z')
-vim.keymap.set('n', '<M-k>',  'mz:m-2<cr>`z')
-vim.keymap.set('v', '<M-k>',  ':m\'>+<cr>`<my`>mzgv`yo`z')
-vim.keymap.set('v', '<M-k>',  ':m\'<-2<cr>`>my`<mzgv`yo`z')
-
-if (vim.fn.has("mac") == 1 or vim.fn.has("macunix") == 1) then
-    vim.keymap.set('n', '<D-j>',  '<M-j>')
-    vim.keymap.set('n', '<D-k>',  '<M-k>')
-    vim.keymap.set('n', '<D-j>',  '<M-j>')
-    vim.keymap.set('n', '<D-k>',  '<M-k>')
-end
+-- keymaps
 
 
 -- " Delete trailing white space on save, useful for Python and CoffeeScript ;)   --TODO
@@ -287,16 +262,7 @@ end
 -- => Spell checking
 --""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""
 --BLOCK_BEGIN
--- Pressing ,ss will toggle and untoggle spell checking
-vim.keymap.set('n', '<leader>ss',  ':setlocal spell!<cr>')
-
--- Shortcuts using <leader>
-vim.keymap.set('n', '<leader>sn',  ']s')
-vim.keymap.set('n', '<leader>sp',  '[s')
-vim.keymap.set('n', '<leader>sa',  'zg')
-vim.keymap.set('n', '<leader>s?',  'z=')
-
-
+-- keymaps
 --BLOCK_END
 --""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""
 -- => Helper functions
@@ -314,7 +280,6 @@ vim.opt.foldmarker="BLOCK_BEGIN,BLOCK_END,translate_on,translate_off"
 vim.opt.foldmarker="translate_off,translate_on"
 -- vim.keymap.set('n', '<leader>bb',  '<Esc>aBLOCK_BEGIN<Esc><Leader>cc<Esc>o<Esc>ddiBLOCK_END<Esc><Leader>cc<Esc>O<Esc>0dw<Esc>i')  --TODO
 
-vim.keymap.set('n', '<leader>bb',  '<Esc>aBLOCK_BEGIN<Esc>oBLOCK_END<Esc>O')  --TODO
 
 
 --""Pwdfull""  --TODO
@@ -386,15 +351,7 @@ end
 --TODO
 
 
-vim.opt.mouse:append("a")
--- 启用每行超过80列的字符提示（字体变蓝并加下划线），不启用就注释掉
---vim.cmd([[au BufWinEnter * let w:m2=matchadd('Underlined', '\%>' . 80 . 'v.\+', -1)]])
-vim.opt.colorcolumn = "100"
 
-vim.opt.cursorline     = true                         --突出显示当前行  --TODO
-vim.opt.cursorcolumn   = true                         --突出显示当前行
-vim.opt.writebackup    = true                         --保存文件前建立备份，保存成功后删除该备份
-vim.cmd([[set nobackup]])                                 --设置无备份文件   --TODO
 
 -- -----------------------------------------------------------------------------
 --  < 编码配置 >
