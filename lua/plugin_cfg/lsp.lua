@@ -13,7 +13,8 @@ require("mason-lspconfig").setup({
     ensure_installed = {
         "lua_ls",
         "verible",
-        "pyre",
+        "pylsp",
+        -- "pyre",
     },
 })
 
@@ -41,12 +42,16 @@ require("lspconfig").lua_ls.setup {
 
 require("lspconfig").verible.setup {
     capabilities = capabilities,
-    on_attach = on_attach
+    on_attach = on_attach,
 }
 
-require("lspconfig").pyre.setup {
+-- require("lspconfig").pyre.setup {
+--     capabilities = capabilities,
+--     on_attach = on_attach
+-- }
+
+require("lspconfig").pylsp.setup {
     capabilities = capabilities,
     on_attach = on_attach
 }
-
 

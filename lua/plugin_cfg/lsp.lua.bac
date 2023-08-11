@@ -1,0 +1,81 @@
+require("mason").setup({
+    ui = {
+        icons = {
+            package_installed = "✓",
+            package_pending = "➜",
+            package_uninstalled = "✗"
+        }
+    }
+})
+
+require("mason-lspconfig").setup({
+    -- 确保安装，根据需要填写
+    ensure_installed = {
+        "lua_ls",
+        "verible",
+        "pylsp",
+        -- "pyre",
+    },
+})
+
+--lsp & cmp
+local capabilities = require('cmp_nvim_lsp').default_capabilities()
+
+local lsp_set_keymap = require("keymaps")
+local on_attach = function(_, _)
+    -- lsp_set_keymap.set_keymap(bufnr)
+        -- 跳转到声明
+        -- vim.api.nvim_buf_set_keymap(bufnr, "n", "gd", "<cmd>lua vim.lsp.buf.declaration()<CR>", {silent = true, noremap = true})
+        vim.api.nvim_buf_set_keymap( "n", "gd", "<cmd>Lspsaga peek_definition<CR>", {silent = true, noremap = true})
+
+        -- 跳转到定义
+        vim.api.nvim_buf_set_keymap( "n", "gD", "<cmd>lua vim.lsp.buf.definition()<CR>", {silent = true, noremap = true})
+        -- 显示注释文档
+        -- vim.api.nvim_buf_set_keymap( "n", "gh", "<cmd>lua vim.lsp.buf.hover()<CR>", {silent = true, noremap = true})
+        vim.api.nvim_buf_set_keymap( "n", "gh", "<cmd>Lspsaga lsp_finder<CR>", {silent = true, noremap = true})
+        -- 跳转到实现
+        vim.api.nvim_buf_set_keymap( "n", "gi", "<cmd>lua vim.lsp.buf.implementation()<CR>", {silent = true, noremap = true})
+        -- 跳转到引用位置
+        -- vim.api.nvim_buf_set_keymap( "n", "gr", "<cmd>lua vim.lsp.buf.references()<CR>", {silent = true, noremap = true})
+        vim.api.nvim_buf_set_keymap( "n", "gr", "<cmd>Lspsaga rename<CR>", {silent = true, noremap = true})
+        -- 以浮窗形式显示错误
+        vim.api.nvim_buf_set_keymap( "n", "go", "<cmd>lua vim.diagnostic.open_float()<CR>", {silent = true, noremap = true})
+        -- vim.api.nvim_buf_set_keymap( "n", "gp", "<cmd>lua vim.diagnostic.goto_prev()<CR>", {silent = true, noremap = true})
+        vim.api.nvim_buf_set_keymap( "n", "gn", "<cmd>lua vim.diagnostic.goto_next()<CR>", {silent = true, noremap = true})
+
+        vim.api.nvim_buf_set_keymap( "n", "<leader>cd", "<cmd>Lspsaga show_cursor_diagnostics<CR>", {silent = true, noremap = true})
+        vim.api.nvim_buf_set_keymap( "n", "<leader>cd", "<cmd>Lspsaga show_line_diagnostics<CR>", {silent = true, noremap = true})
+        vim.api.nvim_buf_set_keymap( "n", "<leader>ca", "<cmd>Lspsaga code_action<CR>", {silent = true, noremap = true})
+        vim.api.nvim_buf_set_keymap( "v", "<leader>ca", "<cmd>Lspsaga code_action<CR>", {silent = true, noremap = true})
+        vim.api.nvim_buf_set_keymap( "n", "<leader>ca", "<cmd>Lspsaga code_action<CR>", {silent = true, noremap = true})
+end
+
+
+require("lspconfig").sumneko_lua.setup {
+    capabilities = capabilities,
+    settings = {
+        Lua = {
+            diagnostics = {
+                -- Get the language server to recognize the `vim` global
+                globals = {'vim'},
+            },
+        }
+    },
+    on_attach = on_attach
+}
+
+require("lspconfig").verible.setup {
+    capabilities = capabilities,
+    on_attach = on_attach
+}
+
+-- require("lspconfig").pyre.setup {
+--     capabilities = capabilities,
+--     on_attach = on_attach
+-- }
+
+require("lspconfig").pylsp.setup {
+    capabilities = capabilities,
+    on_attach = on_attach
+}
+
