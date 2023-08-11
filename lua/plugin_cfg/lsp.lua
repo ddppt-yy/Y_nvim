@@ -43,6 +43,9 @@ require("lspconfig").lua_ls.setup {
 require("lspconfig").verible.setup {
     capabilities = capabilities,
     on_attach = on_attach,
+
+    root_dir = function() return vim.loop.cwd() end
+
 }
 
 -- require("lspconfig").pyre.setup {
