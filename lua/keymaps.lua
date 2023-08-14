@@ -103,7 +103,9 @@ vim.keymap.set('n', '<leader>bb',  '<Esc>aBLOCK_BEGIN<Esc>oBLOCK_END<Esc>O')  --
 --BLOCK_END
 
 
-
+-- yy2Y
+map('n', 'Y',  'yy' , opt)
+map('n', '"+Y',  '"+yy' , opt)
 
 
 
@@ -147,7 +149,6 @@ lsp_keybinds.set_keymap = function (bufnr)
     vim.api.nvim_buf_set_keymap(bufnr, "n", "<leader>cd", "<cmd>Lspsaga show_line_diagnostics<CR>", {silent = true, noremap = true})
     vim.api.nvim_buf_set_keymap(bufnr, "n", "<leader>ca", "<cmd>Lspsaga code_action<CR>", {silent = true, noremap = true})
     vim.api.nvim_buf_set_keymap(bufnr, "v", "<leader>ca", "<cmd>Lspsaga code_action<CR>", {silent = true, noremap = true})
-    vim.api.nvim_buf_set_keymap(bufnr, "n", "<leader>ca", "<cmd>Lspsaga code_action<CR>", {silent = true, noremap = true})
 end
 return lsp_keybinds
 
