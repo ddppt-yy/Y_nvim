@@ -44,7 +44,7 @@ require("lspconfig").verible.setup {
     capabilities = capabilities,
     on_attach = on_attach,
 
-    root_dir = function() return vim.loop.cwd() end
+    -- root_dir = function() return vim.loop.cwd() end
 
 }
 
