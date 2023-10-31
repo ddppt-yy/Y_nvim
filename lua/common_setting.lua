@@ -326,7 +326,7 @@ end
 --font
 if(vim.g.iswindows == 1) then
     vim.opt.guifont = 'Courier New:h8:b:cDEFAULT'
-else 
+else
     vim.opt.guifont = 'Monospace 32'
 end
 
@@ -369,8 +369,44 @@ end
 --end
 --上面自动命令的意思是当离开 insert 模式，或者文本在 normal 模式中有变动时，自动将所有缓冲区中的变更写入到文件。其中 nested 是指该自动命令可以被其他BufWrite 自动命令的事件所依赖，再见吧！AutoSave 插件。
 
+-- 重新打开缓冲区恢复光标位置：
+vim.api.nvim_create_autocmd("BufReadPost", {
+    pattern = "*",
+    callback = function()
+        if vim.fn.line("'\"") > 0 and vim.fn.line("'\"") <= vim.fn.line("$") then
+            vim.fn.setpos(".", vim.fn.getpos("'\""))
+            vim.cmd("silent! foldopen")
+        end
+    end,
+})
+-- 在保证窗口布局的情况下删除缓冲区：
+vim.api.nvim_create_user_command("BufferDelete", function()
+    -- @diagnostic disable-next-line: missing-parameter
+    local file_exists = vim.fn.filereadable(vim.fn.expand("%p"))
+    local modified = vim.api.nvim_buf_get_option(0, "modified")
+    if file_exists == 0 and modified then
+        local user_choice = vim.fn.input("The file is not saved, whether to force delete? Press enter or input [y/n]:")
+        if user_choice == "y" or string.len(user_choice) == 0 then
+            vim.cmd("bd!")
+        end
+        return
+    end
+    local force = not vim.bo.buflisted or vim.bo.buftype == "nofile"
+    vim.cmd(force and "bd!" or string.format("bp | bd! %s", vim.api.nvim_get_current_buf()))
+end, { desc = "Delete the current Buffer while maintaining the window layout" })
 
 
-
-
-
+vim.api.nvim_create_autocmd(
+    {
+        "BufNewFile",
+        "BufWrite",
+        "BufRead"
+    },
+    {
+        pattern = "*.v",
+        callback = function ()
+            local buf = vim.api.nvim_get_current_buf()
+            vim.api.nvim_buf_set_option(buf, "filetype", "verilog")
+        end
+    }
+)
