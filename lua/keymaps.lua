@@ -120,6 +120,8 @@ vim.keymap.set('n', '<c-s-table>',  ":bprevious<CR>")
 --symbol outlne--
 vim.api.nvim_set_keymap("n", "<leader>so", "<cmd>SymbolsOutline<CR>", {silent = true, noremap = true})
 
+--terminal exit   help: https://vi.stackexchange.com/questions/4919/exit-from-terminal-mode-in-neovim-vim-8
+vim.cmd("tnoremap <Esc> <C-\\><C-n>")
 
 -- lsp 快捷键定义
 local lsp_keybinds = {}

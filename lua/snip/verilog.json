@@ -253,8 +253,8 @@
     "module": {
         "prefix": "module",
         "body": [
-            "module $TM_FILENAME_BASE (",
-                "    ${1:port_list}",
+            "module ${1:name}(",
+                "    ${2:port_list}",
                 ");",
                 "    $0",
                 "endmodule"
@@ -264,10 +264,10 @@
     "module#(param)": {
         "prefix": "module #(",
             "body": [
-                "module $TM_FILENAME_BASE #(",
-                    "    ${1:parameter}",
+                "module ${1:name} #(",
+                    "    ${2:parameters}",
                     ") (",
-                    "    ${2:port_list}",
+                    "    ${3:port_list}",
                     ");",
                     "    $0",
                     "endmodule"
@@ -443,11 +443,13 @@
         ],
         "description": "Snippet for a heading"
     },
-    "description": {
-        "prefix": "description",
+    "heading+description": {
+        "prefix": "heading+description",
         "body": [
             "// -------------------------------------------------------",
-            "// ${1:description}",
+            "// -- ${1:heading}",
+            "// -------------------------------------------------------",
+            "// ${2:description}",
             "// -------------------------------------------------------\n$0"
         ],
         "description": "Snippet for a heading with a block for description"

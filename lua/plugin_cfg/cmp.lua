@@ -8,6 +8,7 @@ if not snip_status_ok then
     return
 end
 
+vim.g.vsnip_snippet_dir = "~/.config/nvim/lua/snip/"
 require("luasnip.loaders.from_vscode").lazy_load({
     path = {"~/.config/nvim/lua/snip"},
     -- include = {"python"},
@@ -69,6 +70,7 @@ cmp.setup({
         { name = 'nvim_lsp' },
         { name = 'luasnip' },
         { name = 'vsnip' },
+        --:vsipopen
         { name = 'path' },
         { name = 'buffer' },
         {
@@ -115,7 +117,7 @@ cmp.setup({
 })
 
 require("cmp_dictionary").setup({
-  paths = { "~/.vsnip/dict.dict" },
+  paths = { "~/.config/nvim/lua/snip/dict.dict" },
   exact_length = 2,
   first_case_insensitive = true,
   document = {

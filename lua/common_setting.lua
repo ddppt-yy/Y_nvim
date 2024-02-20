@@ -121,7 +121,7 @@ vim.opt.mat=2
 --""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""
 --BLOCK_BEGIN
 -- Enable syntax highlighting
-vim.opt.syntax=enable
+vim.opt.syntax="on"
 -- Set utf8 as standard encoding and en_US as the standard language
 vim.opt.encoding="utf-8"                                    --设置gvim内部编码，默认不更改
 vim.opt.fileencoding="utf-8"                                --设置当前文件编码，可以更改，如：gbk（同cp936）
@@ -141,11 +141,11 @@ vim.opt.termguicolors=true
 
 -- 不可见字符的显示，这里只把空格显示为一个◇
 vim.o.list = true
-vim.o.listchars = "space:◇"
+-- vim.o.listchars = "space:◇"
 vim.opt.listchars:append "eol:↴"
 
 -- add space column in left for debug or plugins
-vim.opt.signcolumn="yes" 
+vim.opt.signcolumn="yes"
 
 --BLOCK_END
 --""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""

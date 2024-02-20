@@ -1,0 +1,17 @@
+{
+    "heading": {
+        "prefix": "heading",
+        "body": [
+            "// -------------------------------------------------------",
+            "// Created by     : ${xx}",
+            "// Filename       : $TM_FILENAME",
+            "// Author         : ${name}",
+            "// Created On     : ${CURRENT_YEAR}/${CURRENT_MONTH}/${CURRENT_DATE} ${CURRENT_HOUR}:${CURRENT_MINUTE}",
+            "// Last Modified  : ${CURRENT_YEAR}/${CURRENT_MONTH}/${CURRENT_DATE} ${CURRENT_HOUR}:${CURRENT_MINUTE}",
+            "// Version        : v1.0",
+            "// Description    : ",
+            "// -------------------------------------------------------\n"
+        ],
+        "description": "Snippet for a heading"
+    }
+}
