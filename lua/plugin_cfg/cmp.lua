@@ -71,6 +71,10 @@ cmp.setup({
         { name = 'vsnip' },
         { name = 'path' },
         { name = 'buffer' },
+        {
+            name = "dictionary",
+            keyword_length = 2,
+        },
     }),
     --根据文件类型来选择补全来源
     cmp.setup.filetype('gitcommit', {
@@ -108,4 +112,14 @@ cmp.setup({
             end
         }),
     },
+})
+
+require("cmp_dictionary").setup({
+  paths = { "~/.vsnip/dict.dict" },
+  exact_length = 2,
+  first_case_insensitive = true,
+  document = {
+    enable = true,
+    command = { "wn", "${label}", "-over" },
+  },
 })

@@ -131,6 +131,7 @@ return require('packer').startup({
         use "L3MON4D3/LuaSnip" -- snippets引擎，不装这个自动补全会出问题
         use {'rafamadriz/friendly-snippets'}
 
+        use{"uga-rosa/cmp-dictionary"}
 
 
         use{"glepnir/lspsaga.nvim"}
