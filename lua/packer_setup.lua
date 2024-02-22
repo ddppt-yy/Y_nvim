@@ -45,6 +45,17 @@ if (false) then
     ]])
 end
 
+-- user plugin setting path
+-- .
+-- ├── pack
+-- │   ├── packer
+-- │   │   ├── opt
+-- │   │   └── start
+-- │   └── vim-scripts
+-- │       └── start
+-- │           └── vim-xx
+-- └── plugin
+--     └── xx.vim
 
 return require('packer').startup({
     function(use)
