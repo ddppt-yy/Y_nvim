@@ -6,3 +6,6 @@ take it easy ~~~
 > find . -name "*.sv" -o -name "*.svh" -o -name "*.v" | sort > verible.filelist
 
 
+[nvim-lua-guide](https://github.com/glepnir/nvim-lua-guide-zh)
+
+
