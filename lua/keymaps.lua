@@ -107,10 +107,18 @@ vim.keymap.set('n', '<leader>bb',  '<Esc>aBLOCK_BEGIN<Esc>oBLOCK_END<Esc>O')  --
 map('n', 'Y',  'yy' , opt)
 map('n', '"+Y',  '"+yy' , opt)
 
-
-
-
-
+-- 定义 ToggleWrap 函数
+function ToggleWrap()
+  if vim.o.wrap then
+    vim.o.wrap = false
+  else
+    vim.o.wrap = true
+  end
+end
+-- 设置键映射
+--aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa
+map('n', '<a-z>', ':lua ToggleWrap()<CR>', opt)
+-- vim.api.nvim_set_keymap('i', '<F9>', '<Esc>:lua ToggleWrap()<CR>a', {noremap = true, silent = true})
 ------------------ plugins -----------------------
 
 --bufferline move--
