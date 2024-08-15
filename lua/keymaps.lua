@@ -29,14 +29,14 @@ map('n', '<space>',  '/', opt)
 map('n', '<leader><cr>',  ':noh<cr>', opt)
 
 -- Smart way to move between windows
-map('n', '<C-J>',  '<C-W>j'     , opt) 
-map('n', '<C-K>',  '<C-W>k'     , opt) 
-map('n', '<C-H>',  '<C-W>h'     , opt) 
-map('n', '<C-L>',  '<C-W>l'     , opt) 
-map('n', '<C-Down>',  '<C-W>j'  , opt) 
-map('n', '<C-Up>',  '<C-W>k'    , opt) 
-map('n', '<C-Left>',  '<C-W>h'  , opt) 
-map('n', '<C-Right>',  '<C-W>l' , opt) 
+map('n', '<C-J>',  '<C-W>j'     , opt)
+map('n', '<C-K>',  '<C-W>k'     , opt)
+map('n', '<C-H>',  '<C-W>h'     , opt)
+map('n', '<C-L>',  '<C-W>l'     , opt)
+map('n', '<C-Down>',  '<C-W>j'  , opt)
+map('n', '<C-Up>',  '<C-W>k'    , opt)
+map('n', '<C-Left>',  '<C-W>h'  , opt)
+map('n', '<C-Right>',  '<C-W>l' , opt)
 
 -- Close the current buffer
 map('n', '<leader>bd',  ':Bclose<cr>', opt)
@@ -45,10 +45,10 @@ map('n', '<leader>bd',  ':Bclose<cr>', opt)
 map('n', '<leader>ba',  ':1,$ bd!<cr>', opt) --https://github.com/neovim/neovim/issues/2600
 
 -- Useful mappings for managing tabs
-map('n', '<leader>tn',  ':tabnew<cr>'   , opt) 
-map('n', '<leader>to',  ':tabonly<cr>'  , opt) 
-map('n', '<leader>tc',  ':tabclose<cr>' , opt) 
-map('n', '<leader>tm',  ':tabmove'      , opt) 
+map('n', '<leader>tn',  ':tabnew<cr>'   , opt)
+map('n', '<leader>to',  ':tabonly<cr>'  , opt)
+map('n', '<leader>tc',  ':tabclose<cr>' , opt)
+map('n', '<leader>tm',  ':tabmove'      , opt)
 
 -- Opens a new tab with the current buffer's path
 -- Super useful when editing files in the same directory
@@ -67,10 +67,10 @@ map('n', '<leader>cd',  ':cd %:p:h<cr>:pwd<cr>' , opt)
 map('n', '0',  '^', opt)
 
 -- Move a line of text using ALT+[jk] or Comamnd+[jk] on mac
-map('n', '<M-j>',  'mz:m+<cr>`z'                , opt) 
-map('n', '<M-k>',  'mz:m-2<cr>`z'               , opt) 
-map('v', '<M-k>',  ':m\'>+<cr>`<my`>mzgv`yo`z'  , opt) 
-map('v', '<M-k>',  ':m\'<-2<cr>`>my`<mzgv`yo`z' , opt) 
+map('n', '<M-j>',  'mz:m+<cr>`z'                , opt)
+map('n', '<M-k>',  'mz:m-2<cr>`z'               , opt)
+map('v', '<M-k>',  ':m\'>+<cr>`<my`>mzgv`yo`z'  , opt)
+map('v', '<M-k>',  ':m\'<-2<cr>`>my`<mzgv`yo`z' , opt)
 
 if (vim.fn.has("mac") == 1 or vim.fn.has("macunix") == 1) then
     map('n', '<D-j>',  '<M-j>', opt)
@@ -122,14 +122,15 @@ map('n', '<a-z>', ':lua ToggleWrap()<CR>', opt)
 ------------------ plugins -----------------------
 
 --bufferline move--
-vim.keymap.set('n', '<c-table>',  ":bnext<CR>")  
-vim.keymap.set('n', '<c-s-table>',  ":bprevious<CR>")  
+vim.keymap.set('n', '<c-table>',  ":bnext<CR>")
+vim.keymap.set('n', '<c-s-table>',  ":bprevious<CR>")
 
 --symbol outlne--
 vim.api.nvim_set_keymap("n", "<leader>so", "<cmd>SymbolsOutline<CR>", {silent = true, noremap = true})
 
 --terminal exit   help: https://vi.stackexchange.com/questions/4919/exit-from-terminal-mode-in-neovim-vim-8
 vim.cmd("tnoremap <Esc> <C-\\><C-n>")
+vim.keymap.set('n', '<a-d>',  ":Lspsaga term_toggle<CR>")
 
 -- lsp 快捷键定义
 local lsp_keybinds = {}

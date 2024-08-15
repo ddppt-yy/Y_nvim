@@ -41,10 +41,15 @@ require("lspconfig").lua_ls.setup {
     on_attach = on_attach
 }
 
+local lsp_flags = {
+  -- This is the default in Nvim 0.7+
+  debounce_text_changes = 150,
+}
 require("lspconfig").verible.setup {
     capabilities = capabilities,
     on_attach = on_attach,
-
+    flags = lsp_flags,
+    root_dir = function() return vim.loop.cwd() end
     -- root_dir = function() return vim.loop.cwd() end
 
 }
