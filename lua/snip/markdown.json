@@ -13,6 +13,20 @@
         "description": "insert_a_table"
     },
 
+    "insert_a_table1": {
+        "prefix": "ins_table1",
+        "body": [
+            "<font size=\"3\"> <left><a id=\"Table-XXXX\">Table-XXXX</a></left> </font>",
+            "                                                     ",
+            "| **Signal** | **Bits** | **MSB** | **LSB** | **Description** |",
+            "| ---------- | :------: | :-----: | :-----: | --------------- |",
+            "|            |          |         |         |                 |",
+            "|            |          |         |         |                 |",
+            "|            |          |         |         |                 |"
+        ],
+        "description": "insert_a_table1"
+    },
+
     "insert_a_table_html": {
         "prefix": "ins_table_html",
         "body": [
