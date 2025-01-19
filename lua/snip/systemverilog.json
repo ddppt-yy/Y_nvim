@@ -294,9 +294,9 @@
     "gen": {
         "prefix": "gen",
         "body": [
-            "genvar i;",
             "generate",
-            "    for (i-0; i<=$0 ; i=i+1) begin : GEN_",
+            "genvar g_i;",
+            "    for (g_i=0; g_i<=$0 ; g_i=g_i+1) begin : GEN_",
             "        $1",
             "    end",
             "endgenerate"

@@ -48,6 +48,7 @@ local lsp_flags = {
 require("lspconfig").verible.setup {
     capabilities = capabilities,
     on_attach = on_attach,
+    cmd = {"verible-verilog-ls", "--rules=+line-length=length:160,+parameter-name-style=parameter_style:ALL_CAPS;localparam_style:ALL_CAPS"},
     flags = lsp_flags,
     root_dir = function() return vim.loop.cwd() end
     -- root_dir = function() return vim.loop.cwd() end
