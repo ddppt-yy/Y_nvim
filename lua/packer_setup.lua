@@ -150,6 +150,7 @@ return require('packer').startup({
         -- like tagbar
         use {'simrat39/symbols-outline.nvim'}
 
+        use {'xiyaowong/transparent.nvim'}
 
         if packer_bootstrap then
             require('packer').sync()

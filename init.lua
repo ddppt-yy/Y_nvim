@@ -19,6 +19,7 @@ require("plugin_cfg.telescope")
 require("plugin_cfg.lspsaga")
 require("plugin_cfg.symbols_outline")
 require("plugin_cfg.indent-blankline")
+require("plugin_cfg.transparent")
 -- lsp
 require('plugin_cfg.lsp')
 
