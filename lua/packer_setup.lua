@@ -102,8 +102,9 @@ return require('packer').startup({
         })
 
         -- -- rainbow
-        use("p00f/nvim-ts-rainbow")
-
+        -- use("p00f/nvim-ts-rainbow")
+        -- use("HiPhish/rainbow-delimiters")
+        use 'HiPhish/rainbow-delimiters.nvim'
         -- indent-blankline
         use("lukas-reineke/indent-blankline.nvim")
 

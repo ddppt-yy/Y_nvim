@@ -20,6 +20,7 @@ require("plugin_cfg.lspsaga")
 require("plugin_cfg.symbols_outline")
 require("plugin_cfg.indent-blankline")
 require("plugin_cfg.transparent")
+require("plugin_cfg.rainbow")
 -- lsp
 require('plugin_cfg.lsp')
 
