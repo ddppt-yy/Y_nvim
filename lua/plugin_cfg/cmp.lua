@@ -119,9 +119,9 @@ cmp.setup({
 require("cmp_dictionary").setup({
   paths = { "~/.config/nvim/lua/snip/dict.dict" },
   exact_length = 2,
-  first_case_insensitive = true,
-  document = {
-    enable = true,
-    command = { "wn", "${label}", "-over" },
-  },
+  -- first_case_insensitive = true,
+  -- document = {
+  --   enable = true,
+  --   command = { "wn", "${label}", "-over" },
+  -- },
 })
