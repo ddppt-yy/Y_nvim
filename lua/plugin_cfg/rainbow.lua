@@ -10,7 +10,7 @@ require 'rainbow-delimiters.setup'.setup {
     query = {
         [''] = 'rainbow-delimiters',
         latex = 'rainbow-blocks',
-        verilog = 'rainbow-delimiters',
+        verilog = 'rainbow-blocks',
         python = 'rainbow-delimiters'
     },
     highlight = {
