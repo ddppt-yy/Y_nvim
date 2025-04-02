@@ -12,6 +12,8 @@ end
 
 local packer_bootstrap = ensure_packer()
 
+-- local install_path_vim = vim.fn.stdpath('data')..'/site/pack/'
+-- vim.fn.system({'git', 'clone', '--depth', '1', 'https://github.com/vim-scripts/Align.git', install_path_vim})
 -- Use a protected call so we don't error out on first use
 local status_ok, packer = pcall(require, "packer")
 if not status_ok then

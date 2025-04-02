@@ -67,10 +67,11 @@ map('n', '<leader>cd',  ':cd %:p:h<cr>:pwd<cr>' , opt)
 map('n', '0',  '^', opt)
 
 -- Move a line of text using ALT+[jk] or Comamnd+[jk] on mac
-map('n', '<M-j>',  'mz:m+<cr>`z'                , opt)
-map('n', '<M-k>',  'mz:m-2<cr>`z'               , opt)
-map('v', '<M-k>',  ':m\'>+<cr>`<my`>mzgv`yo`z'  , opt)
-map('v', '<M-k>',  ':m\'<-2<cr>`>my`<mzgv`yo`z' , opt)
+map('n', '<A-j>',  'mz:m+<cr>`z'                , opt)
+map('n', '<A-k>',  'mz:m-2<cr>`z'               , opt)
+map('v', '<A-j>',  ':m\'>+<cr>`<my`>mzgv`yo`z'  , opt)
+map('v', '<A-k>',  ':m\'<-2<cr>`>my`<mzgv`yo`z' , opt)
+
 
 if (vim.fn.has("mac") == 1 or vim.fn.has("macunix") == 1) then
     map('n', '<D-j>',  '<M-j>', opt)
