@@ -410,3 +410,76 @@ vim.api.nvim_create_autocmd(
         end
     }
 )
+
+-- 检查插件是否已加载，如果已加载则退出
+if vim.g.loaded_starsearch then
+    return
+end
+vim.g.loaded_starsearch = 1
+
+-- 保存原有的 cpo 选项
+local saved_cpo = vim.o.cpo
+vim.o.cpo = vim.o.cpo .. 'vim'
+
+-- 定义普通模式下搜索光标下单词的函数
+local function search_cword()
+    local word_str = vim.fn.expand("<cword>")
+    if #word_str == 0 then
+        vim.api.nvim_echo({{'E348: No string under cursor', 'ErrorMsg'}}, true, {})
+        return
+    end
+    if word_str:sub(1, 1) == '\\<' then
+        -- vim.o["/"] = '\\<' .. word_str .. '\\>'
+        --为什么不能用 vim.o 操作寄存器？
+        -- vim.o 仅用于 选项（如 hlsearch、number 等），而寄存器（如 @/、@a）是独立的 Vim 特性，需通过 vim.fn 或 Vimscript 语法访问。
+        -- 搜索寄存器 @/ 本质上是一个变量，不是配置选项。
+        vim.fn.setreg('/', '\\<' .. word_str .. '\\>') -- 设置 @/ 寄存器的内容
+    else
+        -- vim.o["/"] = word_str
+        vim.fn.setreg('/', word_str) -- 设置 @/ 寄存器的内容
+    end
+    local saved_unnamed = vim.fn.getreg('"')
+    local saved_s = vim.fn.getreg('s')
+    vim.cmd('normal! "syiw')
+    if word_str ~= vim.fn.getreg('s') then
+        vim.cmd('normal! w')
+    end
+    vim.fn.setreg('s', saved_s)
+    vim.fn.setreg('"', saved_unnamed)
+end
+
+-- 定义可视模式下搜索选中单词的函数
+local function search_vword()
+    local saved_unnamed = vim.fn.getreg('"')
+    local saved_s = vim.fn.getreg('s')
+    vim.cmd('normal! gv"sy')
+    local search_str = vim.fn.escape(vim.fn.getreg('s'), '\\'):gsub('\n', '\\n')
+    -- vim.o["/"] = '\\V' .. search_str
+    vim.fn.setreg('/', '\\V' .. search_str) -- 设置 @/ 寄存器的内容
+    vim.fn.setreg('s', saved_s)
+    vim.fn.setreg('"', saved_unnamed)
+end
+
+-- 普通模式下映射 * 键
+vim.keymap.set('n', '*', function()
+    search_cword()
+    vim.o.hls = true
+end, { silent = true })
+
+-- 可视模式下映射 * 键
+vim.keymap.set('v', '*', function()
+    search_vword()
+    vim.o.hls = true
+end, { silent = true })
+
+-- 恢复原有的 cpo 选项
+vim.o.cpo = saved_cpo    
+
+
+
+
+
+
+
+
+
