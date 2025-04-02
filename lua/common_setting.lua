@@ -490,6 +490,7 @@ vim.opt.listchars = {
   nbsp = "␣",
 }
 
+vim.notify = require("notify")
 
 
 

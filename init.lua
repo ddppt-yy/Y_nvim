@@ -24,6 +24,6 @@ require("plugin_cfg.rainbow")
 -- lsp
 require('plugin_cfg.lsp')
 
-
+-- require("plugin_cfg.notify")
 
 

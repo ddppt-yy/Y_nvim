@@ -158,6 +158,8 @@ return require('packer').startup({
 
         use {'xiyaowong/transparent.nvim'}
 
+        use 'rcarriga/nvim-notify' --TODO
+
         if packer_bootstrap then
             require('packer').sync()
         end
