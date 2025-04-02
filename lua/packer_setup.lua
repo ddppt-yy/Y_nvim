@@ -126,6 +126,9 @@ return require('packer').startup({
             "neovim/nvim-lspconfig",
         }
 
+        -- Align
+        use "vim-scripts/Align"
+
         -- cmp
         use "hrsh7th/nvim-cmp"
         use "hrsh7th/vim-vsnip"
