@@ -74,6 +74,11 @@ end
 time([[try_loadstring definition]], false)
 time([[Defining packer_plugins]], true)
 _G.packer_plugins = {
+  Align = {
+    loaded = true,
+    path = "/home/yh/.local/share/nvim/site/pack/packer/start/Align",
+    url = "https://github.com/vim-scripts/Align"
+  },
   ["Comment.nvim"] = {
     loaded = true,
     path = "/home/yh/.local/share/nvim/site/pack/packer/start/Comment.nvim",
@@ -249,6 +254,11 @@ _G.packer_plugins = {
     loaded = true,
     path = "/home/yh/.local/share/nvim/site/pack/packer/start/vim-bbye",
     url = "https://github.com/moll/vim-bbye"
+  },
+  ["vim-visual-star-search"] = {
+    loaded = true,
+    path = "/home/yh/.local/share/nvim/site/pack/packer/start/vim-visual-star-search",
+    url = "https://github.com/bronson/vim-visual-star-search"
   },
   ["vim-vsnip"] = {
     loaded = true,

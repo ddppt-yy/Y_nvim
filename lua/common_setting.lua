@@ -13,7 +13,7 @@
 --    -> Spell checking
 --    -> Misc
 --    -> Helper functions
---
+--        :help option-list
 --""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""
 --""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""
 -- => General
@@ -473,10 +473,22 @@ vim.keymap.set('v', '*', function()
 end, { silent = true })
 
 -- 恢复原有的 cpo 选项
-vim.o.cpo = saved_cpo    
+vim.o.cpo = saved_cpo
 
+-- 统一换行符和编码
+vim.opt.fileformats = 'unix,dos'
+vim.opt.fileencoding = 'utf-8'
 
-
+-- 优化特殊字符显示
+vim.opt.list = true
+vim.opt.listchars = {
+  tab = "▸ ",
+  trail = "·",
+  eol = "↴",
+  extends = "❯",
+  precedes = "❮",
+  nbsp = "␣",
+}
 
 
 
