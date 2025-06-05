@@ -240,6 +240,11 @@ _G.packer_plugins = {
     path = "/home/yh/.local/share/nvim/site/pack/packer/start/symbols-outline.nvim",
     url = "https://github.com/simrat39/symbols-outline.nvim"
   },
+  tabular = {
+    loaded = true,
+    path = "/home/yh/.local/share/nvim/site/pack/packer/start/tabular",
+    url = "https://github.com/godlygeek/tabular"
+  },
   ["telescope.nvim"] = {
     loaded = true,
     path = "/home/yh/.local/share/nvim/site/pack/packer/start/telescope.nvim",

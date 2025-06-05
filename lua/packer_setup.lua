@@ -158,7 +158,12 @@ return require('packer').startup({
 
         use {'xiyaowong/transparent.nvim'}
 
-        use 'rcarriga/nvim-notify' --TODO
+        -- use 'rcarriga/nvim-notify' --TODO
+
+        -- 添加 Tabular 插件
+        -- use 'godlygeek/tabular'
+
+
 
         if packer_bootstrap then
             require('packer').sync()
