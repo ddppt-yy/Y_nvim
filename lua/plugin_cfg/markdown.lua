@@ -50,8 +50,8 @@ vim.g.table_mode_tableize_delimiter = '|' -- 表格化分隔符
 
 -- 续 markdown.lua
 -- 表格模式设置
-vim.g.table_mode_corner = '|'
-vim.g.table_mode_header_fillchar = '='
+-- vim.g.table_mode_corner = '|'
+-- vim.g.table_mode_header_fillchar = '='
 
 -- -- 快捷键映射
 -- local map = vim.keymap.set
