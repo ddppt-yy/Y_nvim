@@ -276,8 +276,8 @@ vim.opt.statusline = "[%n][%{&fenc!=''?&fenc:&enc}:%{&ff}] %r%F%m%r%h %w [%b 0x%
 
 --""fold""
 vim.opt.foldmethod="marker"
-vim.opt.foldmarker="BLOCK_BEGIN,BLOCK_END,translate_on,translate_off"
-vim.opt.foldmarker="translate_off,translate_on"
+vim.opt.foldmarker="BLOCK_BEGIN,BLOCK_END"
+-- vim.opt.foldmarker="translate_off,translate_on"
 -- vim.keymap.set('n', '<leader>bb',  '<Esc>aBLOCK_BEGIN<Esc><Leader>cc<Esc>o<Esc>ddiBLOCK_END<Esc><Leader>cc<Esc>O<Esc>0dw<Esc>i')  --TODO
 
 
@@ -490,7 +490,7 @@ vim.opt.listchars = {
   nbsp = "␣",
 }
 
-vim.notify = require("notify")
+-- vim.notify = require("notify")
 
 
 

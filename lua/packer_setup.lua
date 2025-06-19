@@ -163,7 +163,9 @@ return require('packer').startup({
         -- 添加 Tabular 插件
         -- use 'godlygeek/tabular'
 
-
+        --Markdown
+        use 'tpope/vim-markdown'          -- Markdown 增强
+        use 'dhruvasagar/vim-table-mode'  -- 表格编辑神器
 
         if packer_bootstrap then
             require('packer').sync()

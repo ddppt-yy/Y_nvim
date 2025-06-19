@@ -199,11 +199,6 @@ _G.packer_plugins = {
     path = "/home/yh/.local/share/nvim/site/pack/packer/start/nvim-lspconfig",
     url = "https://github.com/neovim/nvim-lspconfig"
   },
-  ["nvim-notify"] = {
-    loaded = true,
-    path = "/home/yh/.local/share/nvim/site/pack/packer/start/nvim-notify",
-    url = "https://github.com/rcarriga/nvim-notify"
-  },
   ["nvim-tree.lua"] = {
     loaded = true,
     path = "/home/yh/.local/share/nvim/site/pack/packer/start/nvim-tree.lua",
@@ -240,11 +235,6 @@ _G.packer_plugins = {
     path = "/home/yh/.local/share/nvim/site/pack/packer/start/symbols-outline.nvim",
     url = "https://github.com/simrat39/symbols-outline.nvim"
   },
-  tabular = {
-    loaded = true,
-    path = "/home/yh/.local/share/nvim/site/pack/packer/start/tabular",
-    url = "https://github.com/godlygeek/tabular"
-  },
   ["telescope.nvim"] = {
     loaded = true,
     path = "/home/yh/.local/share/nvim/site/pack/packer/start/telescope.nvim",
@@ -264,6 +254,16 @@ _G.packer_plugins = {
     loaded = true,
     path = "/home/yh/.local/share/nvim/site/pack/packer/start/vim-bbye",
     url = "https://github.com/moll/vim-bbye"
+  },
+  ["vim-markdown"] = {
+    loaded = true,
+    path = "/home/yh/.local/share/nvim/site/pack/packer/start/vim-markdown",
+    url = "https://github.com/tpope/vim-markdown"
+  },
+  ["vim-table-mode"] = {
+    loaded = true,
+    path = "/home/yh/.local/share/nvim/site/pack/packer/start/vim-table-mode",
+    url = "https://github.com/dhruvasagar/vim-table-mode"
   },
   ["vim-vsnip"] = {
     loaded = true,
