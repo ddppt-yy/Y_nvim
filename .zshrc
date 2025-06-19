@@ -139,9 +139,9 @@ source ~/tmux_alias.zsh
 git config --add oh-my-zsh.hide-dirty 1 
 git config --add oh-my-zsh.hide-status 1 
 
-eval $(thefuck --alias)
-# You can use whatever you want as an alias, like for Mondays:
-eval $(thefuck --alias FUCK)
+#eval $(thefuck --alias)
+## You can use whatever you want as an alias, like for Mondays:
+#eval $(thefuck --alias FUCK)
 
 
 export NVM_DIR="$HOME/.nvm"
