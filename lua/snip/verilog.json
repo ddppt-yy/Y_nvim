@@ -50,8 +50,12 @@
     "always_ff": {
         "prefix": "always_ff",
         "body": [
-            "always_ff @(posedge ${1:ck} or negedge ${2:arstn}) begin",
-            "    $0",
+            "always_ff @(posedge clk or negedge resetn) begin : ALWAYS_BLOCK_",
+            "    if (resetn == 1'b0) begin",
+            "    end",
+            "    else if () begin",
+            "    end",
+            "    else;",
             "end"
         ],
         "description": "Snippet for an always_ff block"
@@ -68,8 +72,7 @@
     "always_comb": {
         "prefix": "always_comb",
         "body": [
-            "always_comb begin",
-            "    $0",
+            "always_comb begin : ALWAYS_BLOCK_",
             "end"
         ],
         "description": "Snippet for an always_comb block"
@@ -253,8 +256,8 @@
     "module": {
         "prefix": "module",
         "body": [
-            "module ${1:name}(",
-                "    ${2:port_list}",
+            "module $TM_FILENAME_BASE (",
+                "    ${1:port_list}",
                 ");",
                 "    $0",
                 "endmodule"
@@ -264,10 +267,10 @@
     "module#(param)": {
         "prefix": "module #(",
             "body": [
-                "module ${1:name} #(",
-                    "    ${2:parameters}",
+                "module $TM_FILENAME_BASE #(",
+                    "    ${1:parameter}",
                     ") (",
-                    "    ${3:port_list}",
+                    "    ${2:port_list}",
                     ");",
                     "    $0",
                     "endmodule"
@@ -294,9 +297,9 @@
     "gen": {
         "prefix": "gen",
         "body": [
-            "genvar i;",
             "generate",
-            "    for (i-0; i<=$0 ; i=i+1) begin : GEN_",
+            "genvar g_i;",
+            "    for (g_i=0; g_i<=$0 ; g_i=g_i+1) begin : GEN_",
             "        $1",
             "    end",
             "endgenerate"

@@ -50,8 +50,12 @@
     "always_ff": {
         "prefix": "always_ff",
         "body": [
-            "always_ff @(posedge ${1:ck} or negedge ${2:arstn}) begin",
-            "    $0",
+            "always_ff @(posedge clk or negedge resetn) begin : ALWAYS_BLOCK_",
+            "    if (resetn == 1'b0) begin",
+            "    end",
+            "    else if () begin",
+            "    end",
+            "    else;",
             "end"
         ],
         "description": "Snippet for an always_ff block"
@@ -68,8 +72,7 @@
     "always_comb": {
         "prefix": "always_comb",
         "body": [
-            "always_comb begin",
-            "    $0",
+            "always_comb begin : ALWAYS_BLOCK_",
             "end"
         ],
         "description": "Snippet for an always_comb block"
@@ -443,11 +446,13 @@
         ],
         "description": "Snippet for a heading"
     },
-    "description": {
-        "prefix": "description",
+    "heading+description": {
+        "prefix": "heading+description",
         "body": [
             "// -------------------------------------------------------",
-            "// ${1:description}",
+            "// -- ${1:heading}",
+            "// -------------------------------------------------------",
+            "// ${2:description}",
             "// -------------------------------------------------------\n$0"
         ],
         "description": "Snippet for a heading with a block for description"
