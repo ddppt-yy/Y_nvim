@@ -29,14 +29,23 @@ map('n', '<space>',  '/', opt)
 map('n', '<leader><cr>',  ':noh<cr>', opt)
 
 -- Smart way to move between windows
-map('n', '<C-J>',  '<C-W>j'     , opt)
-map('n', '<C-K>',  '<C-W>k'     , opt)
-map('n', '<C-H>',  '<C-W>h'     , opt)
-map('n', '<C-L>',  '<C-W>l'     , opt)
-map('n', '<C-Down>',  '<C-W>j'  , opt)
-map('n', '<C-Up>',  '<C-W>k'    , opt)
-map('n', '<C-Left>',  '<C-W>h'  , opt)
-map('n', '<C-Right>',  '<C-W>l' , opt)
+map('n' , '<C-J>'     , '<C-W>j' , opt)
+map('n' , '<C-K>'     , '<C-W>k' , opt)
+map('n' , '<C-H>'     , '<C-W>h' , opt)
+map('n' , '<C-L>'     , '<C-W>l' , opt)
+map('n' , '<C-Down>'  , '<C-W>j' , opt)
+map('n' , '<C-Up>'    , '<C-W>k' , opt)
+map('n' , '<C-Left>'  , '<C-W>h' , opt)
+map('n' , '<C-Right>' , '<C-W>l' , opt)
+
+
+-- 窗口大小调整
+map("n" , "<C-h>" , ":vertical resize -2<CR>" , opt)
+map("n" , "<C-l>" , ":vertical resize +2<CR>" , opt)
+map("n" , "<C-j>" , ":resize -2<CR>"          , opt)
+map("n" , "<C-k>" , ":resize +2<CR>"          , opt)
+
+
 
 -- Close the current buffer
 map('n', '<leader>bd',  ':Bclose<cr>', opt)
