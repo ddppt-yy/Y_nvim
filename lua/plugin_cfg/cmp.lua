@@ -72,7 +72,26 @@ cmp.setup({
         { name = 'vsnip' },
         --:vsipopen
         { name = 'path' },
-        { name = 'buffer' },
+        {
+            name = 'buffer',
+            option = {
+                get_bufnrs = function()
+                    local bufs = {}
+                    for _, win in ipairs(vim.api.nvim_list_wins()) do
+                        local buf = vim.api.nvim_win_get_buf(win)
+                        -- 只处理普通文本缓冲区 (过滤终端/NvimTree等)
+                        if vim.bo[buf].buftype == "" and vim.bo[buf].filetype ~= "" then
+                            bufs[buf] = true
+                        end
+                    end
+                    return vim.tbl_keys(bufs)
+                end,
+                -- 可选：增加补全关键词长度限制
+                keyword_length = 3,
+                -- 可选：最大补全项数量
+                -- max_item_count = 5
+            }
+        },
         {
             name = "dictionary",
             keyword_length = 2,
