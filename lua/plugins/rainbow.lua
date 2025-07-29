@@ -1,7 +1,7 @@
 return {
     "HiPhish/rainbow-delimiters.nvim",
     dependencies = { "nvim-treesitter/nvim-treesitter" }, -- 需 Tree-sitter 支持
-    event = "BufReadPost", -- 文件读取后加载
+    event = { "BufReadPost", "BufNewFile" }, -- 文件打开时加载
     config = function()
         require 'rainbow-delimiters.setup'.setup {
             strategy = {

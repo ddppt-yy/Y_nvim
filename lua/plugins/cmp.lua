@@ -2,6 +2,7 @@ return {
     -- nvim-cmp 核心插件
     {
         "hrsh7th/nvim-cmp",
+        event = 'InsertEnter',
         dependencies = {
             "hrsh7th/nvim-cmp",
             "hrsh7th/vim-vsnip",
@@ -134,6 +135,7 @@ return {
     -- 确保 LuaSnip 在 nvim-cmp 之前加载
     {
         "L3MON4D3/LuaSnip",
+        event = 'InsertEnter',
         dependencies = { "rafamadriz/friendly-snippets" },  -- 可选：提供预定义片段
         config = function()
             -- 设置 vsnip 片段目录
@@ -142,16 +144,15 @@ return {
             -- 加载 VSCode 格式的代码片段 - 关键修复点
             require("luasnip.loaders.from_vscode").lazy_load({
                 paths = { "~/.config/nvim/lua/snip" },  -- 注意这里改为 "paths" 而不是 "path"
-                -- path = { "~/.config/nvim/lua/snip" },  -- 注意这里改为 "paths" 而不是 "path"
                 -- include = {"python"},
             })
-            print("test snip")
         end,
     },
 
     -- cmp-dictionary 插件配置
     {
         "uga-rosa/cmp-dictionary",
+        event = 'InsertEnter',
         config = function()
             require("cmp_dictionary").setup({
                 paths = { "~/.config/nvim/lua/snip/dict.dict" },

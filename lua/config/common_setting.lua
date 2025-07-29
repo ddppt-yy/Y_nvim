@@ -491,7 +491,7 @@ vim.opt.listchars = {
 }
 
 -- vim.notify = require("notify")
-
+vim.opt.lazyredraw = false  -- 确保设置为 false
 
 
 

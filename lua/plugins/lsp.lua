@@ -2,6 +2,7 @@ return {
     -- Mason 插件管理
     {
         "williamboman/mason.nvim",
+        event = { "BufReadPost", "BufNewFile" }, -- 文件打开时加载
         config = function()
             require("mason").setup({
                 ui = {
@@ -18,6 +19,7 @@ return {
     -- Mason LSP 配置管理
     {
         "williamboman/mason-lspconfig.nvim",
+        event = { "BufReadPost", "BufNewFile" }, -- 文件打开时加载
         dependencies = { "williamboman/mason.nvim" },
         config = function()
             require("mason-lspconfig").setup({
@@ -34,6 +36,7 @@ return {
     -- LSP 核心功能
     {
         "neovim/nvim-lspconfig",
+        event = { "BufReadPost", "BufNewFile" }, -- 文件打开时加载
         dependencies = {
             "williamboman/mason.nvim",
             "williamboman/mason-lspconfig.nvim",
