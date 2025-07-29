@@ -1,0 +1,161 @@
+return {
+    -- nvim-cmp 核心插件
+    {
+        "hrsh7th/nvim-cmp",
+        dependencies = {
+            "hrsh7th/nvim-cmp",
+            "hrsh7th/vim-vsnip",
+            "hrsh7th/cmp-vsnip",
+            "hrsh7th/cmp-nvim-lsp",
+            "hrsh7th/cmp-nvim-lua",
+            "hrsh7th/cmp-buffer",
+            "hrsh7th/cmp-path",
+            "hrsh7th/cmp-cmdline",
+            "jose-elias-alvarez/null-ls.nvim",
+            "saadparwaiz1/cmp_luasnip",
+            "onsails/lspkind-nvim",
+            "L3MON4D3/LuaSnip", -- snippets引擎，不装这个自动补全会出问题
+            "rafamadriz/friendly-snippets",
+            "uga-rosa/cmp-dictionary",
+        },
+        config = function()
+            local cmp = require("cmp")
+            local luasnip = require("luasnip")
+
+            -- 检查退格键的函数
+            local check_backspace = function()
+                local col = vim.fn.col "." - 1
+                return col == 0 or vim.fn.getline("."):sub(col, col):match "%s"
+            end
+
+            -- 配置 nvim-cmp
+            cmp.setup({
+                snippet = {
+                    expand = function(args)
+                        luasnip.lsp_expand(args.body)  -- 使用 luasnip 展开片段
+                    end,
+                },
+                mapping = cmp.mapping.preset.insert({
+                    ['<C-b>'] = cmp.mapping.scroll_docs(-4),
+                    ['<C-f>'] = cmp.mapping.scroll_docs(4),
+                    ['<C-e>'] = cmp.mapping.abort(),
+                    ['<CR>'] = cmp.mapping.confirm({ select = true }),
+
+                    ["<Tab>"] = cmp.mapping(function(fallback)
+                        if cmp.visible() then
+                            cmp.select_next_item()
+                        elseif luasnip.expandable() then
+                            luasnip.expand()
+                        elseif luasnip.expand_or_jumpable() then
+                            luasnip.expand_or_jump()
+                        elseif check_backspace() then
+                            fallback()
+                        else
+                            fallback()
+                        end
+                    end, {"i", "s"}),
+
+                    ["<S-Tab>"] = cmp.mapping(function(fallback)
+                        if cmp.visible() then
+                            cmp.select_prev_item()
+                        elseif luasnip.jumpable(-1) then
+                            luasnip.jump(-1)
+                        else
+                            fallback()
+                        end
+                    end, {"i", "s"}),
+                }),
+
+                -- 配置补全源 - 关键修复点
+                sources = cmp.config.sources({
+                    { name = 'nvim_lsp' },
+                    { name = 'luasnip' },  -- 使用 luasnip 作为源
+                    { name = 'path' },
+                    {
+                        name = 'buffer',
+                        option = {
+                            get_bufnrs = function()
+                                local bufs = {}
+                                for _, win in ipairs(vim.api.nvim_list_wins()) do
+                                    local buf = vim.api.nvim_win_get_buf(win)
+                                    if vim.bo[buf].buftype == "" and vim.bo[buf].filetype ~= "" then
+                                        bufs[buf] = true
+                                    end
+                                end
+                                return vim.tbl_keys(bufs)
+                            end,
+                            keyword_length = 3,
+                        }
+                    },
+                    {
+                        name = "dictionary",
+                        keyword_length = 2,
+                    },
+                }),
+
+                formatting = {
+                    format = require("lspkind").cmp_format({
+                        with_text = true,
+                        maxwidth = 50,
+                        before = function(entry, vim_item)
+                            vim_item.menu = "[" .. string.upper(entry.source.name) .. "]"
+                            return vim_item
+                        end
+                    }),
+                },
+            })
+
+            -- 文件类型特定配置
+            cmp.setup.filetype('gitcommit', {
+                sources = cmp.config.sources({
+                    {name = 'buffer'}
+                })
+            })
+
+            -- 命令模式配置
+            cmp.setup.cmdline('/', {
+                mapping = cmp.mapping.preset.cmdline(),
+                sources = {
+                    { name = 'buffer' }
+                }
+            })
+
+            cmp.setup.cmdline(':', {
+                mapping = cmp.mapping.preset.cmdline(),
+                sources = cmp.config.sources({
+                    { name = 'path' }
+                }, {
+                        { name = 'cmdline' }
+                    })
+            })
+        end
+    },
+
+    -- 确保 LuaSnip 在 nvim-cmp 之前加载
+    {
+        "L3MON4D3/LuaSnip",
+        dependencies = { "rafamadriz/friendly-snippets" },  -- 可选：提供预定义片段
+        config = function()
+            -- 设置 vsnip 片段目录
+            vim.g.vsnip_snippet_dir = "~/.config/nvim/lua/snip/"
+
+            -- 加载 VSCode 格式的代码片段 - 关键修复点
+            require("luasnip.loaders.from_vscode").lazy_load({
+                path = { "~/.config/nvim/lua/snip" },  -- 注意这里改为 "paths" 而不是 "path"
+                -- include = {"python"},
+            })
+            print("test snip")
+        end,
+    },
+
+    -- cmp-dictionary 插件配置
+    {
+        "uga-rosa/cmp-dictionary",
+        config = function()
+            require("cmp_dictionary").setup({
+                paths = { "~/.config/nvim/lua/snip/dict.dict" },
+                exact_length = 2,
+            })
+        end
+    }
+}
