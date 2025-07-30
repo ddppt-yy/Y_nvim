@@ -17,21 +17,21 @@ return {
     },
 
     -- Mason LSP 配置管理
-    {
-        "williamboman/mason-lspconfig.nvim",
-        event = { "BufReadPost", "BufNewFile" }, -- 文件打开时加载
-        dependencies = { "williamboman/mason.nvim" },
-        config = function()
-            require("mason-lspconfig").setup({
-                ensure_installed = {
-                    "lua_ls",
-                    "verible",
-                    "pylsp",
-                    -- "pyre",
-                }
-            })
-        end
-    },
+    -- {
+    --     "williamboman/mason-lspconfig.nvim",
+    --     event = { "BufReadPost", "BufNewFile" }, -- 文件打开时加载
+    --     dependencies = { "williamboman/mason.nvim" },
+    --     config = function()
+    --         require("mason-lspconfig").setup({
+    --             ensure_installed = {
+    --                 "lua_ls",
+    --                 "verible",
+    --                 "pylsp",
+    --                 -- "pyre",
+    --             }
+    --         })
+    --     end
+    -- },
 
     -- LSP 核心功能
     {
@@ -73,7 +73,7 @@ return {
                 on_attach = on_attach,
                 cmd = {
                     "verible-verilog-ls",
-                    "--rules=+line-length=length:160,+parameter-name-style=parameter_style:ALL_CAPS;localparam_style:ALL_CAPS"
+                    "--rules=+line-length=length:120,+parameter-name-style=parameter_style:ALL_CAPS;localparam_style:ALL_CAPS"
                 },
                 flags = lsp_flags,
                 root_dir = function() return vim.loop.cwd() end

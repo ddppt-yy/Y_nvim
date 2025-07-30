@@ -24,7 +24,7 @@ vim.opt.mouse:append("a")
 
 -- 启用每行超过80列的字符提示（字体变蓝并加下划线），不启用就注释掉
 --vim.cmd([[au BufWinEnter * let w:m2=matchadd('Underlined', '\%>' . 80 . 'v.\+', -1)]])
-vim.opt.colorcolumn = "100"
+vim.opt.colorcolumn = "120"
 
 vim.opt.cursorline      = true                         --突出显示当前行
 vim.opt.cursorcolumn    = true                         --突出显示当前行
