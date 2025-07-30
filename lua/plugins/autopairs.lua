@@ -26,9 +26,19 @@ return {
                 highlight = 'Search',
                 highlight_grey='Comment'
             },
+                -- 禁用所有单引号规则（全局生效）
+                -- disable_rules = { "'" }
         })
 
         -- ===== 自定义规则 =====
+        -- verilog
+        npairs.add_rules({
+            -- 禁用 Verilog 中的单引号补全（覆盖全局设置）
+            Rule("'", "'", "verilog")
+                :with_pair(cond.none()) -- 完全禁用补全
+        }, true)
+
+
         -- 添加空格规则：| 变成 { | }
         npairs.add_rules({
             Rule(" ", " ")
