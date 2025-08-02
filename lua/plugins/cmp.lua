@@ -18,6 +18,7 @@ return {
             "L3MON4D3/LuaSnip", -- snippets引擎，不装这个自动补全会出问题
             "rafamadriz/friendly-snippets",
             "uga-rosa/cmp-dictionary",
+            'milanglacier/minuet-ai.nvim', --minuet
         },
         config = function()
             local cmp = require("cmp")
@@ -37,6 +38,7 @@ return {
                     end,
                 },
                 mapping = cmp.mapping.preset.insert({
+                    ["<A-y>"] = require('minuet').make_cmp_map(), --minuet
                     ['<C-b>'] = cmp.mapping.scroll_docs(-4),
                     ['<C-f>'] = cmp.mapping.scroll_docs(4),
                     ['<C-e>'] = cmp.mapping.abort(),
@@ -69,6 +71,7 @@ return {
 
                 -- 配置补全源 - 关键修复点
                 sources = cmp.config.sources({
+                    { name = 'minuet' }, --minuet
                     { name = 'nvim_lsp' },
                     { name = 'luasnip' },  -- 使用 luasnip 作为源
                     { name = 'path' },
@@ -93,6 +96,13 @@ return {
                         keyword_length = 2,
                     },
                 }),
+                performance = { -- minuet
+                    -- It is recommended to increase the timeout duration due to
+                    -- the typically slower response speed of LLMs compared to
+                    -- other completion sources. This is not needed when you only
+                    -- need manual completion.
+                    fetching_timeout = 2000,
+                },
 
                 formatting = {
                     format = require("lspkind").cmp_format({
