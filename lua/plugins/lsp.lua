@@ -79,17 +79,26 @@ return {
                 root_dir = function() return vim.loop.cwd() end
             })
 
-            -- 配置 Python 语言服务器
-            require("lspconfig").pylsp.setup({
-                capabilities = capabilities,
-                on_attach = on_attach
-            })
+            -- -- 配置 Python 语言服务器
+            -- require("lspconfig").pylsp.setup({
+            --     capabilities = capabilities,
+            --     on_attach = on_attach
+            -- })
 
             -- 可选: Pyre 配置
-            -- require("lspconfig").pyre.setup({
-            --   capabilities = capabilities,
-            --   on_attach = on_attach
-            -- })
+            require("lspconfig").pyright.setup({
+                capabilities = capabilities,
+                on_attach = on_attach,
+                -- settings = {
+                --     python = {
+                --         analysis = {
+                --             autoSearchPaths = true,      -- 自动搜索路径
+                --             diagnosticMode = "workspace",-- 检查整个项目
+                --             useLibraryCodeForTypes = true -- 利用库代码推断类型
+                --         }
+                --     }
+                -- }
+            })
         end
     }
 }
