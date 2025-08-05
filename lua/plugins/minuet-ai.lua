@@ -28,7 +28,7 @@ return {
                 },
             },
             virtualtext = {
-                auto_trigger_ft = {'verilog'},
+                auto_trigger_ft = {'verilog', 'python', 'shell', 'cshell', 'zshell'},
                 keymap = {
                     -- accept whole completion
                     accept = '<A-A>',
