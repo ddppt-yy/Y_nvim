@@ -472,6 +472,50 @@ vim.keymap.set('v', '*', function()
     vim.o.hls = true
 end, { silent = true })
 
+-- verible filelist generate
+function GenerateVeribleFilelist()
+    -- 检查是否在 Git 仓库中
+    local git_cmd = "git rev-parse --is-inside-work-tree 2>/dev/null"
+    local git_handle = io.popen(git_cmd)
+    local git_result = git_handle:read("*a")
+    git_handle:close()
+
+    if git_result:match("true") then
+        -- 获取 Git 根目录
+        local toplevel_cmd = "git rev-parse --show-toplevel"
+        local toplevel_handle = io.popen(toplevel_cmd)
+        local git_root = toplevel_handle:read("*l"):gsub("\n", "")
+        toplevel_handle:close()
+
+        -- 构建 find 命令
+        local find_cmd = string.format(
+            'find "%s" -type f \\( -name "*.v" -o -name "*.sv" -o -name "*.svh" -o -name "*.vh" \\) | sort > "%s/verible.filelist"',
+            git_root,
+            git_root
+        )
+
+        -- 执行命令
+        local result = os.execute(find_cmd)
+
+        if result then
+            vim.notify(string.format("Verible filelist created at: %s/verible.filelist", git_root), vim.log.levels.INFO)
+        else
+            vim.notify("Failed to generate Verible filelist", vim.log.levels.ERROR)
+        end
+    else
+        vim.notify("Current directory is not a Git repository", vim.log.levels.WARN)
+    end
+end
+-- 创建用户命令方便调用
+vim.api.nvim_create_user_command("GenVeribleFilelist", GenerateVeribleFilelist, {})
+
+
+
+
+
+
+
+
 -- 恢复原有的 cpo 选项
 vim.o.cpo = saved_cpo
 
