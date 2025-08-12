@@ -511,6 +511,43 @@ vim.api.nvim_create_user_command("GenVeribleFilelist", GenerateVeribleFilelist, 
 
 
 
+function IConvertFileEncoding()
+    -- 获取当前文件路径
+    local current_file = vim.fn.expand('%:p')
+    if current_file == '' then
+        print("Error: No file name")
+        return
+    end
+
+    -- 创建临时文件路径
+    local middle_file = current_file .. "_iconv.mid"
+    local output_file = current_file .. "_iconv.out"
+
+    local cmd0 = "iconv -f UTF-8 -t LATIN1 " .. current_file  ..  "   -o " ..  middle_file 
+    local cmd1 = "iconv -f GBK   -t UTF-8  " .. middle_file   ..  "   -o " ..  output_file
+
+    local result = vim.fn.system(cmd0)
+    if vim.v.shell_error ~= 0 then
+        print("转码失败: " .. result)
+        os.remove(middle_file)
+        return
+    end
+    vim.fn.system(cmd1)
+
+    -- 用转码后的文件替换原始文件
+    local backup_file = current_file .. ".bak"
+    os.rename(current_file, backup_file)
+    os.rename(output_file, current_file)
+
+    -- 清理临时文件
+    os.remove(middle_file)
+    os.remove(output_file)
+
+    vim.cmd("e!")
+    print("finish")
+end
+-- 创建命令
+vim.cmd [[command! IConvertEncoding lua IConvertFileEncoding()]]
 
 
 
