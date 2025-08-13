@@ -1,6 +1,7 @@
 return {
     "xiyaowong/transparent.nvim",
-    cmd = {"TransparentEnable", "TransparentToggle"},
+    -- cmd = {"TransparentEnable", "TransparentToggle"},
+    event = { "BufReadPost", "BufNewFile" }, -- 文件打开时加载
     lazy = true,                  -- 显式声明延迟加载
     config = function()
         -- Optional, you don't have to run setup.

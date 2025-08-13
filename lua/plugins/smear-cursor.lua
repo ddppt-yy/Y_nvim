@@ -1,5 +1,6 @@
 return {
     "sphamba/smear-cursor.nvim",
+    event = 'InsertEnter',
 
     opts = {
         -- Smear cursor when switching buffers or windows.

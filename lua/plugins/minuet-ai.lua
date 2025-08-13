@@ -1,5 +1,6 @@
 return {
     'milanglacier/minuet-ai.nvim',
+    event = 'InsertEnter',
     dependencies = {
         'nvim-lua/plenary.nvim'
     },

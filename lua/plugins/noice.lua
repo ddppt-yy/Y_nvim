@@ -1,7 +1,8 @@
 -- lazy.nvim
 return {
     "folke/noice.nvim",
-    event = "VeryLazy",
+    -- event = "VeryLazy",
+    event = 'InsertEnter',
     opts = {
         -- add any options here
     },
