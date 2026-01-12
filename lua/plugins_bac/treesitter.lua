@@ -4,7 +4,7 @@ return {
     event = { "BufReadPost", "BufNewFile" }, -- 文件打开时加载
     cmd = { "TSUpdate", "TSInstall", "TSBufEnable", "TSModuleInfo" },
     config = function()
-        require("nvim-treesitter").setup({
+        require("nvim-treesitter.configs").setup({
             -- A list of parser names, or "all" (the five listed parsers should always be installed)
             ensure_installed = { "lua", "vim", "vimdoc", "query", "verilog", "python", "bash", "markdown" },
 
