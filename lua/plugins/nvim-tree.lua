@@ -10,6 +10,19 @@ return {
             require("nvim-tree").setup({
                 -- 关闭文件时，自动关闭
                 auto_close = true,
+                view = {
+                    float = {
+                        enable = true,
+                        open_win_config = {
+                            relative = "editor",
+                            border = "rounded",
+                            width = 40,
+                            height = 30,
+                            row = 1,
+                            col = 1,
+                        }
+                    }
+                },
                 filters = {
                     -- 不显示 .git 目录中的内容
                     custom = {
