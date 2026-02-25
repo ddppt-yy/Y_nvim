@@ -1,5 +1,28 @@
 {
 
+
+    "insert_a_st": {
+        "prefix": "ins_st",
+        "body": [
+            "<font size=\"3\"> <left><a id=\"Table-XXXX\">Table-XXXX</a></left> </font>",
+            "**IDLE 状态**  ",
+            "- 当 `start == 1` 时，跳转到 `READ`。  ",
+            "- 当 `reset == 1` 时，保持 `IDLE`。  ",
+            "",
+            "**READ 状态**  ",
+            "- 当 `data_valid == 1` 时，跳转到 `PROCESS`。  ",
+            "- 当 `error == 1` 时，跳转到 `ERROR`。  ",
+            "",
+            "**PROCESS 状态**  ",
+            "- 当 `done == 1` 时，跳转到 `IDLE`。  ",
+            "- 默认情况下（无其他条件），保持 `PROCESS`。  ",
+            "",
+            "**ERROR 状态**  ",
+            "- 任何情况下，下一周期回到 `IDLE`。"
+        ],
+        "description": "insert_a_table"
+    },
+
     "insert_a_table": {
         "prefix": "ins_table",
         "body": [

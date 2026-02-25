@@ -15,7 +15,8 @@ return {
             -- 表格模式配置
             vim.g.table_mode_corner = '|'  -- 表格边框样式
             vim.g.table_mode_separator = '|'
-            vim.g.table_mode_fillchar = '-' -- 填充字符
+            --vim.g.table_mode_fillchar = '-' -- 填充字符
+            vim.g.table_mode_fillchar = ' ' -- 填充字符
             
             -- tpope/vim-markdown 增强配置
             vim.g.markdown_recommended_style = 0  -- 禁用自动缩进
@@ -24,7 +25,7 @@ return {
             vim.g.markdown_minlines = 100         -- 折叠计算行数
             
             -- vim-table-mode 高级配置
-            vim.g.table_mode_always_active = 0    -- 需要手动启用表格模式
+            vim.g.table_mode_always_active = 1    -- 自动启用表格模式
             vim.g.table_mode_auto_align = 1       -- 自动对齐表格
             vim.g.table_mode_delimiter = ','       -- CSV 分隔符
             vim.g.table_mode_tableize_delimiter = '|' -- 表格化分隔符
