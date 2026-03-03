@@ -7,14 +7,11 @@
 -- require("ibl").setup {
 -- }
 
-
 return {
-    "lukas-reineke/indent-blankline.nvim",
-    -- event = 'VeryLazy',
-    event = { 'BufReadPost', 'BufNewFile' },
-    config = function()
-        require("ibl").setup {
-        }
-    end
-
+	"lukas-reineke/indent-blankline.nvim",
+	-- event = 'VeryLazy',
+	event = { "BufReadPost", "BufNewFile" },
+	config = function()
+		require("ibl").setup({})
+	end,
 }
