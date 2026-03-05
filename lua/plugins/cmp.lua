@@ -148,13 +148,22 @@ return {
 		event = "InsertEnter",
 		dependencies = { "rafamadriz/friendly-snippets" }, -- 可选：提供预定义片段
 		config = function()
-			-- 设置 vsnip 片段目录
-			vim.g.vsnip_snippet_dir = "~/.config/nvim/lua/snip/"
+			-- -- 设置 vsnip 片段目录
+			-- vim.g.vsnip_snippet_dir = "~/.config/nvim/lua/snip/"
 
-			-- 加载 VSCode 格式的代码片段 - 关键修复点
+			-- -- 加载 VSCode 格式的代码片段 - 关键修复点
+			-- require("luasnip.loaders.from_vscode").lazy_load({
+			-- 	paths = { "~/.config/nvim/lua/snip" }, -- 注意这里改为 "paths" 而不是 "path"
+			-- 	-- include = {"python"},
+			-- })
+
+			-- 加载 friendly-snippets 中的片段 (优先级设为普通)
+			require("luasnip.loaders.from_vscode").lazy_load()
+
+			-- 加载你自己的自定义片段 (优先级设为更高，约1500)
 			require("luasnip.loaders.from_vscode").lazy_load({
-				paths = { "~/.config/nvim/lua/snip" }, -- 注意这里改为 "paths" 而不是 "path"
-				-- include = {"python"},
+				paths = { vim.fn.stdpath("config") .. "/lua/snip/" },
+				override_priority = 1500, -- 更高的优先级，让自定义片段优先
 			})
 		end,
 	},
