@@ -10,6 +10,7 @@ return {
 					"verible",
 					"pylsp",
 					"lua_ls",
+					"tclsp",
 				},
 				automatic_enable = {
 					exclude = {},
@@ -62,6 +63,12 @@ return {
 				"Pipfile",
 				".git",
 			},
+		})
+
+		vim.lsp.config("tclsp", {
+			cmd = { "tclsp" },
+			filetypes = { "tcl", "sdc", "xdc", "upf" },
+			root_markers = { "tclint.toml", ".tclint", "pyproject.toml", ".git" },
 		})
 
 		vim.lsp.config("verible", {
