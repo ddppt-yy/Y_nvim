@@ -110,27 +110,5 @@ return {
 			},
 		})
 
-		-- -- 设置自动命令
-		-- local format_on_save_group = vim.api.nvim_create_augroup("LspFormatOnSave", { clear = true })
-		-- vim.api.nvim_create_autocmd("BufWritePre", {
-		-- 	group = format_on_save_group,
-		-- 	callback = function()
-		-- 		if opts.autoformat then
-		-- 			vim.lsp.buf.format({
-		-- 				async = false,
-		-- 				timeout_ms = 3000,
-		-- 				filter = function(client)
-		-- 					-- 只允许一个客户端处理格式化
-		-- 					return client.name ~= "tsserver" and client.name ~= "sumneko_lua"
-		-- 				end,
-		-- 			})
-		-- 		end
-		-- 	end,
-		-- })
-		-- vim.keymap.set({ 'n', 'x' }, '<leader>f', function() vim.lsp.buf.format({ async = true }) end, opts) -- <space>f进行代码格式化
-		-- 创建命令 :format_file 来执行格式化
-		vim.api.nvim_create_user_command("FormatFile", function()
-			vim.lsp.buf.format({ async = false, timeout_ms = 3000 })
-		end, { desc = "Format current file with LSP" })
 	end,
 }

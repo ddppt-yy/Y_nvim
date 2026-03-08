@@ -1,6 +1,7 @@
 return {
 	"nvimdev/lspsaga.nvim",
-	event = { "BufReadPost", "BufNewFile" }, -- 文件打开时加载
+	-- event = { "BufReadPost", "BufNewFile" }, -- 文件打开时加载
+	event = "VeryLazy",
 	-- cmd = "lspsaga",
 	dependencies = {
 		"neovim/nvim-lspconfig", -- LSP 配置
