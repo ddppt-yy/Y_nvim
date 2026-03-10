@@ -2,11 +2,63 @@ return {
 	{
 		"nvim-lualine/lualine.nvim",
 		event = { "BufReadPost", "BufNewFile" }, -- 文件打开时加载
-		dependencies = { "nvim-tree/nvim-web-devicons" },
+		dependencies = {
+			"nvim-tree/nvim-web-devicons",
+			"catppuccin/nvim",
+		},
 		config = function()
+			-- 1. 获取 Catppuccin 调色板（需要 catppuccin 已安装）
+			local C = require("catppuccin.palettes").get_palette()
+
+			-- 2. 定义透明背景变量（根据你的需求修改）
+			--    如果你启用了透明背景，可以将下面的 false 改为 true
+			local transparent_enabled = false
+			local transparent_bg = transparent_enabled and "NONE" or C.mantle
+
+			-- 3. 构建自定义主题表（直接使用之前你提供的代码片段）
+			local custom_theme = {
+				normal = {
+					a = { bg = C.blue, fg = C.mantle, gui = "bold" },
+					b = { bg = C.surface0, fg = C.blue },
+					c = { bg = transparent_bg, fg = C.text },
+					-- 如果你需要为 x/y/z 部分也指定颜色，可以添加：
+					-- x = { bg = transparent_bg, fg = C.text },
+					-- y = { bg = transparent_bg, fg = C.text },
+					-- z = { bg = transparent_bg, fg = C.text },
+				},
+				insert = {
+					a = { bg = C.green, fg = C.base, gui = "bold" },
+					b = { bg = C.surface0, fg = C.green },
+					-- 其他模式以此类推...
+				},
+				terminal = {
+					a = { bg = C.green, fg = C.base, gui = "bold" },
+					b = { bg = C.surface0, fg = C.green },
+				},
+				command = {
+					a = { bg = C.peach, fg = C.base, gui = "bold" },
+					b = { bg = C.surface0, fg = C.peach },
+				},
+				visual = {
+					a = { bg = C.mauve, fg = C.base, gui = "bold" },
+					b = { bg = C.surface0, fg = C.mauve },
+				},
+				replace = {
+					a = { bg = C.red, fg = C.base, gui = "bold" },
+					b = { bg = C.surface0, fg = C.red },
+				},
+				inactive = {
+					a = { bg = transparent_bg, fg = C.blue },
+					b = { bg = transparent_bg, fg = C.surface1, gui = "bold" },
+					c = { bg = transparent_bg, fg = C.overlay0 },
+				},
+			}
+
+			-- vim.print(C)
 			local config = {
 				options = {
-					theme = "tokyonight",
+					theme = "custom_theme",
+					-- theme = "tokyonight",
 					-- theme = "onelight",
 				},
 				sections = {
