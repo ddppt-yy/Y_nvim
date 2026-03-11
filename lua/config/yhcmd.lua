@@ -19,6 +19,99 @@ local function get_git_root()
 end
 
 --------------------------------------------------
+-- user func
+--------------------------------------------------
+-- BLOCK_BEGIN
+
+-- verible filelist generate
+-- BLOCK_BEGIN
+function GenerateVeribleFilelist()
+    -- 检查是否在 Git 仓库中
+    local git_cmd = "git rev-parse --is-inside-work-tree 2>/dev/null"
+    local git_handle = io.popen(git_cmd)
+    local git_result = git_handle:read("*a")
+    git_handle:close()
+
+    if git_result:match("true") then
+        -- 获取 Git 根目录
+        local toplevel_cmd = "git rev-parse --show-toplevel"
+        local toplevel_handle = io.popen(toplevel_cmd)
+        local git_root = toplevel_handle:read("*l"):gsub("\n", "")
+        toplevel_handle:close()
+
+        -- 构建 find 命令
+        local find_cmd = string.format(
+            'find "%s" -type f \\( -name "*.v" -o -name "*.sv" -o -name "*.svh" -o -name "*.vh" \\)  -path "*/rtl/*"    | sort > "%s/verible.filelist"',
+            git_root,
+            git_root
+        )
+
+        -- 执行命令
+        local result = os.execute(find_cmd)
+
+        if result then
+            vim.notify(string.format("Verible filelist created at: %s/verible.filelist", git_root), vim.log.levels.INFO)
+        else
+            vim.notify("Failed to generate Verible filelist", vim.log.levels.ERROR)
+        end
+    else
+        vim.notify("Current directory is not a Git repository", vim.log.levels.WARN)
+    end
+end
+-- 创建用户命令方便调用
+vim.api.nvim_create_user_command("YhGenVeribleFilelist", GenerateVeribleFilelist, {})
+-- BLOCK_END
+
+
+-- code convert encoding
+-- BLOCK_BEGIN
+function IConvertFileEncoding()
+    -- 获取当前文件路径
+    local current_file = vim.fn.expand('%:p')
+    if current_file == '' then
+        print("Error: No file name")
+        return
+    end
+
+    -- 创建临时文件路径
+    local middle_file = current_file .. "_iconv.mid"
+    local output_file = current_file .. "_iconv.out"
+
+    local cmd0 = "iconv -f UTF-8 -t LATIN1 " .. current_file  ..  "   -o " ..  middle_file 
+    local cmd1 = "iconv -f GBK   -t UTF-8  " .. middle_file   ..  "   -o " ..  output_file
+
+    local result = vim.fn.system(cmd0)
+    if vim.v.shell_error ~= 0 then
+        print("转码失败: " .. result)
+        os.remove(middle_file)
+        return
+    end
+    vim.fn.system(cmd1)
+
+    -- 用转码后的文件替换原始文件
+    local backup_file = current_file .. ".bak"
+    os.rename(current_file, backup_file)
+    os.rename(output_file, current_file)
+
+    -- 清理临时文件
+    os.remove(middle_file)
+    os.remove(output_file)
+
+    vim.cmd("e!")
+    print("finish")
+end
+-- 创建命令
+-- vim.cmd [[command! IConvertEncoding lua IConvertFileEncoding()]]
+vim.api.nvim_create_user_command("IConvertEncoding", IConvertFileEncoding, {})
+-- BLOCK_END
+
+
+
+
+-- BLOCK_END
+
+
+--------------------------------------------------
 -- ../plugins/lsp.lua
 --------------------------------------------------
 -- BLOCK_BEGIN
