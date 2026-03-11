@@ -19,6 +19,8 @@
 -- => General
 --""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""
 --BLOCK_BEGIN
+vim.opt.shell = "/usr/bin/zsh"
+vim.env.SHELL = "/usr/bin/zsh"
 -- open mouse in any mode
 vim.opt.mouse:append("a")
 
