@@ -3,6 +3,7 @@ return {
         "nvim-lualine/lualine.nvim",
         event = { "BufReadPost", "BufNewFile" }, -- 文件打开时加载
         dependencies = {
+            "milanglacier/minuet-ai.nvim",
             "nvim-tree/nvim-web-devicons",
             "catppuccin/nvim",
         },
@@ -87,6 +88,14 @@ return {
                                     return ""
                                 end
                                 return string.format(" U+%04X", vim.fn.char2nr(char))
+                            end,
+                        },
+                        {
+                            function()
+                                -- ~/.local/share/nvim/lazy/minuet-ai.nvim/lua/minuet/lualine.lua
+                                local minuet_status = require("minuet.lualine")
+                                return minuet_status or "AI: idle" -- 无状态时兜底
+                                -- return string.format("AI:%s", minuet_status)
                             end,
                         },
                         "encoding",
