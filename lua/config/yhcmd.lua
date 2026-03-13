@@ -45,8 +45,9 @@ function GenerateVeribleFilelist()
         -- 构建 find 命令
         local find_cmd = string.format(
             -- 'find "%s" -type f \\( -name "*.v" -o -name "*.sv" -o -name "*.svh" -o -name "*.vh" \\)  -path "*/rtl/*"    | sort > "%s/verible.filelist"',
-            '%s -t f -e v -e sv -e svh -e vh -e svh  --full-path ".*/rtl/.*" | sort > "%s/verible.filelist"',
+            '%s -t f -e v -e sv -e svh -e vh -e svh  --full-path ".*/rtl/.*"   %s | sort > "%s/verible.filelist"',
             fd_cmd,
+            git_root,
             git_root
         )
 
