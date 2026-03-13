@@ -39,10 +39,14 @@ function GenerateVeribleFilelist()
         local git_root = toplevel_handle:read("*l"):gsub("\n", "")
         toplevel_handle:close()
 
+        -- 检查系统中是否有 fdfind 命令，有则用 fdfind，没有则使用 fd
+        local fd_cmd = vim.fn.executable("fdfind") == 1 and "fdfind" or "fd"
+
         -- 构建 find 命令
         local find_cmd = string.format(
-            'find "%s" -type f \\( -name "*.v" -o -name "*.sv" -o -name "*.svh" -o -name "*.vh" \\)  -path "*/rtl/*"    | sort > "%s/verible.filelist"',
-            git_root,
+            -- 'find "%s" -type f \\( -name "*.v" -o -name "*.sv" -o -name "*.svh" -o -name "*.vh" \\)  -path "*/rtl/*"    | sort > "%s/verible.filelist"',
+            '%s -t f -e v -e sv -e svh -e vh -e svh  --full-path ".*/rtl/.*" | sort > "%s/verible.filelist"',
+            fd_cmd,
             git_root
         )
 
