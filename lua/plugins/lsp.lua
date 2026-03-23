@@ -80,7 +80,7 @@ return {
 		vim.lsp.config("verible", {
 			cmd = {
 				"verible-verilog-ls",
-				"--rules=+line-length=length:120,+parameter-name-style=parameter_style:ALL_CAPS;localparam_style:ALL_CAPS",
+				"--rules=+explicit-begin,+line-length=length:120,+parameter-name-style=parameter_style:ALL_CAPS;localparam_style:ALL_CAPS",
 			},
 			filetypes = { "systemverilog", "verilog" },
 			root_markers = { ".git" },
