@@ -31,7 +31,7 @@ return {
 			vim.g.markdown_minlines = 100 -- 折叠计算行数
 
 			-- vim-table-mode 高级配置
-			vim.g.table_mode_always_active = 1 -- 自动启用表格模式
+			vim.g.table_mode_always_active = 0 -- 自动启用表格模式
 			vim.g.table_mode_auto_align = 1 -- 自动对齐表格
 			vim.g.table_mode_delimiter = "," -- CSV 分隔符
 			vim.g.table_mode_tableize_delimiter = "|" -- 表格化分隔符
