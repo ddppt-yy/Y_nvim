@@ -948,6 +948,42 @@ class SvParser:
         
         return (name, data_type, packed_dim, unpacked_dim)
     
+    def _parse_import(self, import_decl) -> str:
+        """Parse a single import declaration.
+        
+        Args:
+            import_decl: A kPackageImportItem node.
+            
+        Returns:
+            A string representing the import (e.g., "pkg_mthc_::*").
+        """
+        result = ""
+        for child in import_decl.children:
+            if child is None:
+                continue
+            tag = child.tag if hasattr(child, 'tag') else ""
+            if tag == "kScopePrefix":
+                # Get package name from kScopePrefix
+                for subchild in child.children:
+                    if subchild is None:
+                        continue
+                    subtag = subchild.tag if hasattr(subchild, 'tag') else ""
+                    if subtag in ("SymbolIdentifier", "EscapedIdentifier"):
+                        result += self._get_text(subchild)
+                    elif subtag == "::":
+                        result += "::"
+            elif tag == "::":
+                result += "::"
+            elif tag == "*":
+                result += "*"
+            elif tag == "kUnqualifiedId":
+                # Get package name from kUnqualifiedId (for specific imports)
+                for subchild in child.children:
+                    if subchild and hasattr(subchild, 'tag') and subchild.tag in ("SymbolIdentifier", "EscapedIdentifier"):
+                        result += self._get_text(subchild)
+        
+        return result
+    
     def get_sv_port(self) -> dict:
         """Get module information including ports, parameters, and signals.
         
@@ -969,6 +1005,7 @@ class SvParser:
         
         result = {
             'name': '',
+            'package': [],
             'para': [],
             'lpara': [],
             'port': [],
@@ -989,6 +1026,12 @@ class SvParser:
             # Get ports
             for port in header.iter_find_all({"tag": "kPortDeclaration"}):
                 result['port'].append(self._parse_port_declaration(port))
+        
+        # Get imports from module body
+        for import_decl in module.iter_find_all({"tag": "kPackageImportItem"}):
+            import_str = self._parse_import(import_decl)
+            if import_str:
+                result['import'].append(import_str)
         
         # Get localparameters and parameters from module body
         # Note: verible uses kParamDeclaration for both parameter and localparam

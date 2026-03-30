@@ -1,4 +1,13 @@
-module test #(
+module test
+
+import pkg_mthc_::*;
+import mt_gtcd_pkg_::*;
+import mt_geom_common::*;
+import tess_gtcd_if_pkg::*;
+import gtcv_pds_if_pkg::*;
+import mss_if_pkg::*;
+
+#(
     parameter logic [2-1:0] NN = 3,
     parameter logic [4-1:0] AA = 8,
     parameter logic [8-1:0] BB =16,
@@ -18,7 +27,7 @@ module test #(
     input        op    [AA-1:0]          fuck2  [CC    ]     ,//asda
     input        op    [AA-1:0]          fuck3               ,//asda
        //asdjfjsdaf;
-    output       logic [CC-1:0]          out    [NN    ]     //aklj;as
+    output       logic [mss_if_pkg::CC-1:0]          out    [mss_if_pkg::AA-1:0]     //aklj;as
 );
 
 localparam       [AA+BB-1:0]  DD = CC;
@@ -34,7 +43,7 @@ localparam logic [AA+BB-1:0] EE = DD;
 
     logic                      a_l                              ;
     user_def    a_w                              ;
-    user_def1 [NN-1:0]     a_w1   [EE2]                            ;
+    user_def1 [$bits(a_l)-1:0]     a_w1   [EE2]                            ;
     logic                      a_r                              ;
 
     a_intf_if                  a_intf()                ;
