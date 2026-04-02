@@ -125,7 +125,137 @@ alias lf='ls | xargs realpath'
 alias ls="ls --color=tty -F"
 alias ll="ls -l -ah"
 alias mv='mv -i'
-alias rm='rm -i'
+# alias rm='rm -i'
+#BLOCK_BEGIN
+# 自定义 rm 命令：删除前打包到 ~/.zzzrubbish
+rm() {
+    # 垃圾桶目录
+    local rubbish_dir="$HOME/.zzzrubbish"
+
+    # 创建目录（如果不存在）
+    [[ -d "$rubbish_dir" ]] || mkdir -p "$rubbish_dir"
+
+    # 显示垃圾桶当前大小
+    if [[ -d "$rubbish_dir" ]]; then
+        local size=$(du -sh "$rubbish_dir" 2>/dev/null | cut -f1)
+        echo "🗑️  Trash size: $size"
+    else
+        echo "🗑️  Trash directory created."
+    fi
+
+    # ---------- 解析选项 ----------
+    local recursive=false
+    local force=false
+    local files=()
+    local opt
+
+    while [[ $# -gt 0 ]]; do
+        case "$1" in
+            -r|--recursive)
+                recursive=true
+                shift
+                ;;
+            -f|--force)
+                force=true
+                shift
+                ;;
+            -rf|-fr)
+                recursive=true
+                force=true
+                shift
+                ;;
+            --)
+                shift
+                break
+                ;;
+            -*)
+                # 忽略未知选项，保持兼容性
+                echo "rm: ignoring unknown option '$1'" >&2
+                shift
+                ;;
+            *)
+                break
+                ;;
+        esac
+    done
+    files=("$@")
+
+    # 无文件时直接返回
+    if [[ ${#files[@]} -eq 0 ]]; then
+        return 0
+    fi
+
+    # ---------- 收集待删除项（转换为 / 下的相对路径，保留符号链接）----------
+    local items_to_delete=()
+    local failed=false
+
+    for item in "${files[@]}"; do
+        # 文件/链接是否存在
+        if [[ ! -e "$item" && ! -L "$item" ]]; then
+            if [[ "$force" == false ]]; then
+                echo "rm: cannot remove '$item': No such file or directory" >&2
+                failed=true
+            fi
+            continue
+        fi
+
+        # 目录且无 -r 则报错
+        if [[ -d "$item" && "$recursive" == false ]]; then
+            echo "rm: cannot remove '$item': Is a directory" >&2
+            failed=true
+            continue
+        fi
+
+        # 获取不解析符号链接的绝对路径（readlink -m 兼容 Linux，macOS 可安装 coreutils 或使用 realpath -s）
+        local abs_path
+        if command -v readlink >/dev/null && readlink -m . >/dev/null 2>&1; then
+            abs_path=$(readlink -m "$item")
+        elif command -v realpath >/dev/null; then
+            abs_path=$(realpath -s "$item" 2>/dev/null)
+        else
+            # 后备方案：若路径已是绝对路径则直接使用，否则拼接 $PWD（不处理符号链接）
+            if [[ "$item" = /* ]]; then
+                abs_path="$item"
+            else
+                abs_path="$PWD/$item"
+            fi
+        fi
+
+        # 去掉开头的 '/'，得到相对于根目录的路径
+        local rel_path="${abs_path#/}"
+        if [[ -z "$rel_path" ]]; then
+            echo "rm: refusing to remove root directory" >&2
+            failed=true
+            continue
+        fi
+
+        items_to_delete+=("$rel_path")
+    done
+
+    if [[ "$failed" == true ]]; then
+        return 1
+    fi
+
+    if [[ ${#items_to_delete[@]} -eq 0 ]]; then
+        return 0
+    fi
+
+    # ---------- 打包 ----------
+    local timestamp=$(date +%Y%m%d%H%M%S)
+    local archive="$rubbish_dir/$timestamp.tar.gz"
+
+    if tar -C / -czf "$archive" "${items_to_delete[@]}" 2>/dev/null; then
+        # 打包成功，执行真实删除
+        local rm_opts="-f"
+        [[ "$recursive" == true ]] && rm_opts="-rf"
+        command rm $rm_opts "${files[@]}" 2>/dev/null
+    else
+        echo "rm: failed to create backup archive, no files removed" >&2
+        return 1
+    fi
+}
+#BLOCK_END
+
 alias sc='source ~/.zshrc'
 alias vimrc='vim ~/.vimrc'
 alias which='alias | /usr/bin/which --tty-only --read-alias --show-dot --show-tilde'
