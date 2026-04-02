@@ -1,6 +1,7 @@
 # If you come from bash you might have to change your $PATH.
 # export PATH=$HOME/bin:/usr/local/bin:$PATH
 export PATH=~/.local/share/nvim/mason/bin:$HOME/bin:/usr/local/bin:$PATH
+export PATH=~/tools/zellij/:$PATH
 
 # Path to your oh-my-zsh installation.
 export ZSH="$HOME/.oh-my-zsh"
@@ -128,13 +129,15 @@ alias rm='rm -i'
 alias sc='source ~/.zshrc'
 alias vimrc='vim ~/.vimrc'
 alias which='alias | /usr/bin/which --tty-only --read-alias --show-dot --show-tilde'
+alias zellij_naked='sh ~/.config/zellij/naked.sh'
+alias zellij_restore='sh ~/.config/zellij/restore.sh'
 
 f_sv_inst () {
     emacs --batch $1 -f verilog-batch-auto
 }
 alias sv_inst=f_sv_inst
 
-source ~/tmux_alias.zsh
+# source ~/tmux_alias.zsh
 
 git config --add oh-my-zsh.hide-dirty 1 
 git config --add oh-my-zsh.hide-status 1 

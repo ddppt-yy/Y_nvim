@@ -1,0 +1,32 @@
+
+
+
+
+zellij action override-layout  now.kdl  --retain-existing-terminal-panes --apply-only-to-active-tab
+
+
+
+
+
+
+
+zellij action override-layout  naked.kdl  --retain-existing-terminal-panes --apply-only-to-active-tab
+
+
+
+
+
+
+zellij action dump-layout
+
+
+
+
+
+
+
+zellij action toggle-pane-frames
+
+
+
+

@@ -24,7 +24,7 @@ vim.g.maplocalleader = ","
 -- Setup lazy.nvim
 require("lazy").setup({
 
-	git = { url_format = "https://bgithub.xyz/%s.git" },
+	-- git = { url_format = "https://bgithub.xyz/%s.git" },
 
 	spec = {
 		-- import your plugins
