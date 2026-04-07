@@ -1,0 +1,122 @@
+# 将文件保存到 ~/.config/starship.toml
+
+# 全局设置
+format = """
+[# ](bold blue)\
+$shell \
+$username\
+[@ ](bold white)$hostname\
+[in ](bold white)$directory\
+$git_branch\
+$git_state\
+$git_status\
+$python\
+$custom\
+$time\
+$line_break\
+$character
+"""
+add_newline = true
+scan_timeout = 50
+command_timeout = 500
+
+# ========== 用户名模块 ==========
+[username]
+style_user = "bold   #89d3c8"
+style_root = "bold red"
+format = '[$user]($style) '
+disabled = false
+show_always = true   # 始终显示用户名（即使不是SSH）
+
+# =========️ 主机名模块 ==========
+[hostname]
+ssh_only = false     # 始终显示主机名
+style = "bold #A4D894"
+format = '[ $hostname](bold #A4D894) '
+disabled = false
+
+# ========== 时间模块 ==========
+[time]
+disabled = false
+format = ' [\[$time\]]($style) '
+time_format = "%H:%M:%S"   # 24小时制时分秒
+# style = "bold yellow"
+style = "white"
+use_12hr = false           # 不使用12小时制
+
+# ========== 目录模块 ==========
+[directory]
+truncation_length = 0
+# truncation_symbol = "…/"
+style = "bold #e7ce9b"
+# home_symbol = "🏠 "
+# read_only = " 🔒"
+# 可选：显式禁用任何截断行为
+truncate_to_repo = false
+
+# ========== Git 模块 ==========
+[git_branch]
+symbol = "🌱 "
+style = "bold #F58A07"  # 亮橙色
+
+[git_state]
+style = "bold #F58A07"
+
+[git_status]
+style = "bold #F58A07"
+format = '([\($all_status$ahead_behind\)]($style))'
+conflicted = "🏳 "
+ahead = "⇡${count}"
+behind = "⇣${count}"
+diverged = "⇕⇡${ahead_count}⇣${behind_count}"
+up_to_date = "✅"
+untracked = "? "
+stashed = "📦 "
+modified = "! "
+staged = "+ "
+renamed = "» "
+deleted = "✘ "
+
+# Git Metrics
+[git_metrics]
+disabled = false
+added_style = "bold green"
+deleted_style = "bold red"
+
+# ========== Python 模块 ==========
+[python]
+style = "bold yellow"
+symbol = "🐍 "
+format = '[$symbol(\($virtualenv\) )$version]($style)'
+
+# ========== SystemVerilog 自定义模块 ==========
+[custom.sv]
+command = '''bash -c '
+if find . -maxdepth 1 -type f \( -name "*.sv" -o -name "*.svh" -o -name "*.v" \) | grep -q .; then
+    echo "📘 "
+fi
+' '''
+when = true
+shell = ["bash", "-c"]
+style = "bold cyan"
+
+# ========== 其他工具模块 ==========
+[shell]
+zsh_indicator  = 'z'
+tcsh_indicator = 'c'
+unknown_indicator = 'mystery shell'
+style = 'cyan bold'
+disabled = false
+
+
+[cmd_duration]
+min_time = 2_000
+show_milliseconds = true
+style = "bold yellow"
+
+[line_break]
+disabled = false
+
+[character]
+success_symbol = "[➜](bold green) "
+error_symbol = "[✗](bold red) "

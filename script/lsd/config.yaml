@@ -1,0 +1,23 @@
+# ~/.config/lsd/config.yaml
+
+# == 图标设置 ==
+icons:
+  when: always        # 总是显示图标
+  theme: fancy        # 使用 'fancy' 图标主题
+  separator: " "      # 图标和文件名之间用一个空格隔开
+
+# == 颜色设置 ==
+color:
+  when: always        # 总是显示颜色
+  theme: custom      # 使用默认颜色主题
+
+# == 布局设置 ==
+layout: oneline       # 文件一列显示 (类似 `ls -1`)
+# layout: grid        # 文件网格显示 (类似 `ls` 默认效果)
+
+# == 其他选项 ==
+size: short           # 显示文件大小 (如 '4.2K')
+permission: rwx       # 以 'rwx' 格式显示权限
+hyperlink: never      # 不附加超链接
+no-symlink: false     # 显示符号链接的目标文件
+symlink-arrow: ⇒      # 符号链接的指向箭头

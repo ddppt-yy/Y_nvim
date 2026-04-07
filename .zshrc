@@ -2,6 +2,8 @@
 # export PATH=$HOME/bin:/usr/local/bin:$PATH
 export PATH=~/.local/share/nvim/mason/bin:$HOME/bin:/usr/local/bin:$PATH
 export PATH=~/tools/zellij/:$PATH
+export PATH=~/tools/startship/:$PATH
+export PATH=~/tools/lsd/:$PATH
 
 # Path to your oh-my-zsh installation.
 export ZSH="$HOME/.oh-my-zsh"
@@ -120,10 +122,10 @@ alias git_head='git reset --hard origin/master'
 alias grep='grep --color=auto --exclude-dir={.bzr,CVS,.git,.hg,.svn}'
 alias history='fc -fl 1'
 alias h=history
-alias la='ls -lAh'
-alias lf='ls | xargs realpath'
-alias ls="ls --color=tty -F"
-alias ll="ls -l -ah"
+alias la='lsd -lAh'
+alias lf='lsd | xargs realpath'
+alias ls="lsd --color=tty -F"
+alias ll="lsd -l -ah"
 alias mv='mv -i'
 # alias rm='rm -i'
 #BLOCK_BEGIN
@@ -280,3 +282,14 @@ git config --add oh-my-zsh.hide-status 1
 export NVM_DIR="$HOME/.nvm"
 [ -s "$NVM_DIR/nvm.sh" ] && \. "$NVM_DIR/nvm.sh"  # This loads nvm
 [ -s "$NVM_DIR/bash_completion" ] && \. "$NVM_DIR/bash_completion"  # This loads nvm bash_completion
+
+
+
+
+
+# 初始化 Starship 提示符
+eval "$(starship init zsh)"
+
+
+
+

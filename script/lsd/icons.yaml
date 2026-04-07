@@ -1,0 +1,17 @@
+# ~/.config/lsd/icons.yaml
+
+# 按文件扩展名匹配
+extension:
+  # SystemVerilog 文件
+  sv: 
+  svh: 
+  # Verilog 文件
+  v: 
+  vl: 
+  sdc: 
+  # VHDL 文件（可选）
+  vhd:   
+  vhdl: 
+  # file list
+  f: 
+  lst: 
