@@ -125,13 +125,6 @@ return {
 				Lua = {
 					codeLens = { enable = true },
 					hint = { enable = true, semicolon = "Disable" },
-					format = {
-						enable = true,
-						defaultConfig = {
-							indent_style = "space",
-							indent_size = "4",
-						},
-					},
 				},
 			},
 		})

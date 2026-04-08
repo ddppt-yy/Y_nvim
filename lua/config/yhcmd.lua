@@ -140,8 +140,34 @@ vim.api.nvim_create_user_command("IConvertEncoding", IConvertFileEncoding, {})
 -- vim.keymap.set({ 'n', 'x' }, '<leader>f', function() vim.lsp.buf.format({ async = true }) end, opts) -- <space>f进行代码格式化
 -- 创建命令 :format_file 来执行格式化
 vim.api.nvim_create_user_command("YhFormatFile", function()
-	vim.lsp.buf.format({ async = false, timeout_ms = 3000 })
-end, { desc = "Format current file with LSP" })
+	local filetype = vim.bo.filetype
+	-- 对 Lua 文件使用 stylua 进行格式化
+	if filetype == "lua" then
+		local stylua_path = vim.fn.exepath("stylua")
+		if stylua_path ~= "" then
+			local file_path = vim.fn.expand("%:p")
+			-- 指定 stylua 配置文件路径
+			local stylua_config = vim.fn.expand("~/.config/nvim/lua/config/stylua.toml")
+			local config_arg = ""
+			if vim.fn.filereadable(stylua_config) == 1 then
+				config_arg = " --config-path " .. vim.fn.shellescape(stylua_config)
+			end
+			vim.cmd("write") -- 先保存文件
+			local result = vim.fn.system(stylua_path .. config_arg .. " " .. vim.fn.shellescape(file_path))
+			if vim.v.shell_error == 0 then
+				vim.cmd("edit!") -- 重新加载文件
+				vim.notify("Formatted with stylua", vim.log.levels.INFO)
+			else
+				vim.notify("stylua format failed: " .. result, vim.log.levels.ERROR)
+			end
+		else
+			-- 如果没有 stylua，使用 LSP 格式化
+			vim.lsp.buf.format({ async = false, timeout_ms = 3000 })
+		end
+	else
+		vim.lsp.buf.format({ async = false, timeout_ms = 3000 })
+	end
+end, { desc = "Format current file with LSP or stylua for lua files" })
 -- BLOCK_END
 
 --------------------------------------------------

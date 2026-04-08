@@ -1,0 +1,7 @@
+# StyLua 配置文件
+# 使用空格进行缩进，而不是 tab
+indent_type = "Spaces"
+indent_width = 4
+column_width = 120
+line_endings = "Unix"
+quote_style = "AutoPreferDouble"
