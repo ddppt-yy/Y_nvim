@@ -53,6 +53,25 @@ return {
 			-- 			},
 			-- 		},
 			-- 	},
+			settings = {
+				pylsp = {
+					plugins = {
+						jedi = {
+							environment = nil,
+						},
+						-- 添加 pycodestyle 配置，修改最大行长度为 120
+						pycodestyle = {
+							enabled = true, -- 启用（默认就是 true，可省略）
+							maxLineLength = 120, -- 将行长限制改为 120
+						},
+						-- 如果你也启用了 pylint，可以同时配置 pylint
+						-- pylint = {
+						--     enabled = true,
+						--     args = { "--max-line-length=120" },
+						-- },
+					},
+				},
+			},
 			cmd = { "pylsp" },
 			filetypes = { "python" },
 			root_markers = {
@@ -106,9 +125,15 @@ return {
 				Lua = {
 					codeLens = { enable = true },
 					hint = { enable = true, semicolon = "Disable" },
+					format = {
+						enable = true,
+						defaultConfig = {
+							indent_style = "space",
+							indent_size = "4",
+						},
+					},
 				},
 			},
 		})
-
 	end,
 }
