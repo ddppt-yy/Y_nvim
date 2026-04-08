@@ -1,10 +1,10 @@
 # If you come from bash you might have to change your $PATH.
 # export PATH=$HOME/bin:/usr/local/bin:$PATH
 export PATH=~/.local/share/nvim/mason/bin:$HOME/bin:/usr/local/bin:$PATH
-export PATH=~/tools/zellij/:$PATH
-export PATH=~/tools/startship/:$PATH
-export PATH=~/tools/lsd/:$PATH
-export PATH=~/tools/yazi/:$PATH
+#export PATH=~/tools/zellij/:$PATH
+#export PATH=~/tools/startship/:$PATH
+#export PATH=~/tools/lsd/:$PATH
+#export PATH=~/tools/yazi/:$PATH
 
 # Path to your oh-my-zsh installation.
 export ZSH="$HOME/.oh-my-zsh"
