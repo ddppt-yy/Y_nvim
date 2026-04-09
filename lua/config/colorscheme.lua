@@ -9,8 +9,8 @@ vim.g.solarized_contrast   = "high" -- default value is normal
 vim.g.solarized_visibility = "high" -- default value is normal
 vim.g.solarized_hitrail    = 1      -- default value is 0
 --set background=light
-vim.opt.background = "dark"
-vim.cmd[[colorscheme tokyonight-moon]]
+-- vim.opt.background = "dark"
+-- vim.cmd[[colorscheme tokyonight-moon]]
 --vim.cmd[[colorscheme solarized-high]]
 -- ------------------------------------------------------------------
 
