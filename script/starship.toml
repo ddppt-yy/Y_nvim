@@ -89,16 +89,16 @@ style = "bold yellow"
 symbol = "🐍 "
 format = '[$symbol(\($virtualenv\) )$version]($style)'
 
-# ========== SystemVerilog 自定义模块 ==========
-[custom.sv]
-command = '''bash -c '
-if find . -maxdepth 1 -type f \( -name "*.sv" -o -name "*.svh" -o -name "*.v" \) | grep -q .; then
-    echo "📘 "
-fi
-' '''
-when = true
-shell = ["bash", "-c"]
-style = "bold cyan"
+## ========== SystemVerilog 自定义模块 ==========
+#[custom.sv]
+#command = '''bash -c '
+#if find . -maxdepth 1 -type f \( -name "*.sv" -o -name "*.svh" -o -name "*.v" \) | grep -q .; then
+#    echo "📘 "
+#fi
+#' '''
+#when = true
+#shell = ["bash", "-c"]
+#style = "bold cyan"
 
 # ========== 其他工具模块 ==========
 [shell]
@@ -120,3 +120,11 @@ disabled = false
 [character]
 success_symbol = "[➜](bold green) "
 error_symbol = "[✗](bold red) "
+
+[custom.zellij_status]
+command = '''bash -c 'if [ -n "$ZELLIJ" ]; then echo "   "; else echo ""; fi' '''
+shell = "bash"
+style = "fg:white"
+format = "[$output]($style)"
+# 可选：只在特定目录或总是显示
+when = true

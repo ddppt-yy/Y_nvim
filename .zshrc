@@ -108,7 +108,7 @@ export LANG=en_US.UTF-8
 
 f_cd () {
     cd $1
-    ls --color=tty -F -l -ah
+    lsd -l -ah
 }
 alias cd=f_cd
 alias ..='cd ..'
