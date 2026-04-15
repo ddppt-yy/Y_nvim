@@ -6,38 +6,30 @@ return {
 	},
 	config = function()
 		require("minuet").setup({
-		          provider = "openai_compatible",
+			provider = "openai_fim_compatible",
 			n_completions = 1, -- recommend for local model for resource saving
 			-- I recommend beginning with a small context window size and incrementally
 			-- expanding it, depending on your local computing power. A context window
 			-- of 512, serves as an good starting point to estimate your computing
 			-- power. Once you have a reliable estimate of your local computing power,
 			-- you should adjust the context window to a larger value.
-			-- context_window: characters of context before/after cursor sent to LLM.
-			-- ~4 chars ≈ 1 token, so 16000 chars ≈ 4000 tokens.
-			-- 16000 is the default and works well for code completion;
-			-- too large wastes tokens and adds latency, too small loses context.
-			context_window = 16000,
+			context_window = 512,
 			provider_options = {
-				openai_compatible = {
-					api_key = "MINUET_API_KEY",
-					name = "GLM-5.1",
-					end_point = os.getenv("MINUET_END_POINT") or "",
-					model = "glm-5.1",
-					stream = true,
+				openai_fim_compatible = {
+					-- For Windows users, TERM may not be present in environment variables.
+					-- Consider using APPDATA instead.
+					api_key = "TERM",
+					name = "Ollama",
+					end_point = "http://localhost:11434/v1/completions",
+					model = "qwen2.5-coder:0.5b",
 					optional = {
-						-- max_tokens: max generated tokens per completion.
-						-- Code completion is typically short (1-5 lines),
-						-- 512 is sufficient and keeps latency low.
-						max_tokens = 512,
-						-- top_p: nucleus sampling threshold.
-						-- 0.95 balances diversity and coherence for code completion.
-						top_p = 0.95,
+						max_tokens = 56,
+						top_p = 0.9,
 					},
 				},
 			},
 			virtualtext = {
-				auto_trigger_ft = { "verilog", "systemverilog", "python", "shell", "cshell", "zshell", "markdown" },
+				auto_trigger_ft = { "verilog", "python", "shell", "cshell", "zshell" },
 				keymap = {
 					-- accept whole completion
 					accept = "<A-A>",

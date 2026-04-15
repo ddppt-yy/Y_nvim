@@ -271,6 +271,7 @@ f_sv_inst () {
 alias sv_inst=f_sv_inst
 
 # source ~/tmux_alias.zsh
+source ~/minuet-ai.env.zsh
 
 git config --add oh-my-zsh.hide-dirty 1 
 git config --add oh-my-zsh.hide-status 1 
