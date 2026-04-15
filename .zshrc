@@ -125,7 +125,7 @@ alias history='fc -fl 1'
 alias h=history
 alias la='lsd -lAh'
 alias lf='lsd | xargs realpath'
-alias ls="lsd --color=tty -F"
+alias ls="lsd -ah"
 alias ll="lsd -l -ah"
 alias mv='mv -i'
 # alias rm='rm -i'
