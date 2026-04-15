@@ -44,7 +44,7 @@
     "insert_a_table_excel": {
         "prefix": "ins_table_excel",
         "body": [
-            "<font size=\"3\"> <left><a id=\"Table-Excel-XXXX\">Table-XXXX</a></left> </font>",
+            "<font size=\"3\"> <left><a id=\"Table-Excel-XXXX\">Table-XXXX</a></left> </font>"
         ],
         "description": "insert_a_table_excel"
     },
