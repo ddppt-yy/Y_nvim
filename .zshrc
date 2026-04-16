@@ -5,6 +5,7 @@ export PATH=~/.local/share/nvim/mason/bin:$HOME/bin:/usr/local/bin:$PATH
 #export PATH=~/tools/startship/:$PATH
 #export PATH=~/tools/lsd/:$PATH
 #export PATH=~/tools/yazi/:$PATH
+export PATH="$HOME/.local/bin:$PATH"
 
 # Path to your oh-my-zsh installation.
 export ZSH="$HOME/.oh-my-zsh"
@@ -76,7 +77,7 @@ HIST_STAMPS="mm/dd/yyyy"
 # Example format: plugins=(rails git textmate ruby lighthouse)
 # Add wisely, as too many plugins slow down shell startup.
 #plugins=(git z zsh-autosuggestions zsh-syntax-highlighting     )
-plugins=(z zsh-autosuggestions zsh-syntax-highlighting history )
+plugins=( zsh-autosuggestions zsh-syntax-highlighting history )
 
 source $ZSH/oh-my-zsh.sh
 
@@ -292,6 +293,6 @@ export NVM_DIR="$HOME/.nvm"
 # 初始化 Starship 提示符
 eval "$(starship init zsh)"
 
-
+eval "$(zoxide init zsh)"
 
 
