@@ -206,7 +206,7 @@ def parse_and_align_sv_code(code):
 
 
 if __name__ == "__main__":
-    debug = 1
+    debug = 0
     if debug :
         input_code = """
                 //aosl;fjkldsaflk,
