@@ -189,12 +189,18 @@ def parse_and_align_sv_code(code):
         elif bool(re.match(r'^\s*$', codes[num])):
             out.append(codes[num])
         elif '//' in codes[num]:
-            tmp = '//' + codes[num].split('//',1)[1]
-            out.append(' '*3+port_list_new[out_num] + end_str + tmp)
-            out_num=out_num+1
+            if out_num < len(port_list_new):
+                tmp = '//' + codes[num].split('//',1)[1]
+                out.append(' '*3+port_list_new[out_num] + end_str + tmp)
+                out_num=out_num+1
+            else:
+                out.append(codes[num])
         else:
-            out.append(' '*3+port_list_new[out_num] + end_str)
-            out_num=out_num+1
+            if out_num < len(port_list_new):
+                out.append(' '*3+port_list_new[out_num] + end_str)
+                out_num=out_num+1
+            else:
+                out.append(codes[num])
     return '\n'.join(out)
 
 

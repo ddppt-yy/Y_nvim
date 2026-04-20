@@ -948,6 +948,56 @@ class SvParser:
         
         return (name, data_type, packed_dim, unpacked_dim)
     
+    def _parse_net_declaration(self, net_decl) -> tuple:
+        """Parse a net declaration (wire declarations).
+        
+        Args:
+            net_decl: A kNetDeclaration node.
+            
+        Returns:
+            A tuple representing the signal information (name, type, packed_dim, unpacked_dim).
+        """
+        data_type = ""
+        packed_dim = ""
+        unpacked_dim = ""
+        name = ""
+        
+        # Get data type (wire) from kDataType child
+        dt_node = net_decl.find({"tag": "kDataType"})
+        if dt_node:
+            # Check for primitive type (wire, tri, etc.)
+            for child in dt_node.children:
+                if child and hasattr(child, 'tag') and child.tag in ("wire", "tri", "supply0", "supply1", "wand", "wor", "triand", "trior", "tri0", "tri1"):
+                    data_type = child.tag
+                    break
+        
+        # Get packed dimensions from kDataTypeImplicitIdDimensions
+        implicit_dims = net_decl.find({"tag": "kDataTypeImplicitIdDimensions"})
+        if implicit_dims:
+            packed_node = implicit_dims.find({"tag": "kPackedDimensions"})
+            if packed_node:
+                packed_dim = self._get_packed_dimensions(packed_node)
+        
+        # Get name and unpacked dimensions from kNetVariableDeclarationAssign
+        net_var_assign = net_decl.find({"tag": "kNetVariableDeclarationAssign"})
+        if net_var_assign:
+            net_var = net_var_assign.find({"tag": "kNetVariable"})
+            if net_var:
+                name_id = net_var.find({"tag": ["SymbolIdentifier", "EscapedIdentifier"]})
+                if name_id:
+                    name = self._get_text(name_id)
+                unpacked_node = net_var.find({"tag": "kUnpackedDimensions"})
+                if unpacked_node:
+                    unpacked_dim = self._get_unpacked_dimensions(unpacked_node)
+        
+        # Handle "None" values
+        if not packed_dim:
+            packed_dim = "None"
+        if not unpacked_dim:
+            unpacked_dim = "None"
+        
+        return (name, data_type, packed_dim, unpacked_dim)
+    
     def _parse_import(self, import_decl) -> str:
         """Parse a single import declaration.
         
@@ -1009,7 +1059,8 @@ class SvParser:
             'para': [],
             'lpara': [],
             'port': [],
-            'signal': []
+            'signal': [],
+            'import': []
         }
         
         # Get module name
@@ -1054,6 +1105,9 @@ class SvParser:
             else:
                 result['para'].append(self._parse_parameter(param_decl))
         
+        # Collect all signal declarations with their source position for ordering
+        signal_entries = []
+        
         # Get data declarations (signals)
         for data_decl in module.iter_find_all({"tag": "kDataDeclaration"}):
             # Skip if parent is kModuleHeader (it's a port declaration)
@@ -1063,7 +1117,19 @@ class SvParser:
             signal_info = self._parse_data_declaration(data_decl)
             # Skip empty signals (module instantiations)
             if signal_info[0]:
-                result['signal'].append(signal_info)
+                pos = data_decl.start if data_decl.start is not None else 0
+                signal_entries.append((pos, signal_info))
+        
+        # Get net declarations (wire declarations)
+        for net_decl in module.iter_find_all({"tag": "kNetDeclaration"}):
+            signal_info = self._parse_net_declaration(net_decl)
+            if signal_info[0]:
+                pos = net_decl.start if net_decl.start is not None else 0
+                signal_entries.append((pos, signal_info))
+        
+        # Sort by source position to maintain original order
+        signal_entries.sort(key=lambda x: x[0])
+        result['signal'] = [info for _, info in signal_entries]
         
         self.module_info = result
         return result
