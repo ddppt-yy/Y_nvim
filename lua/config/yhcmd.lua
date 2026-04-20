@@ -111,6 +111,36 @@ vim.api.nvim_create_user_command("IConvertEncoding", IConvertFileEncoding, {})
 -- BLOCK_END
 
 
+-- sv align
+-- BLOCK_BEGIN
+function SvAlignBlock(opts)
+    local line1 = vim.fn.getpos("'<")[2]
+    local col1  = vim.fn.getpos("'<")[3]
+    local line2 = vim.fn.getpos("'>")[2]
+    local col2  = vim.fn.getpos("'>")[3]
+    local lines = vim.fn.getline(line1, line2)
+    local block = {}
+    for i, line in ipairs(lines) do
+        local start_col = (i == 1) and (col1 - 1) or 0
+        local end_col   = (i == #lines) and col2 or #line
+        table.insert(block, line:sub(start_col + 1, end_col))
+    end
+    local input_text = table.concat(block, "\n")
+    local python_script = vim.fn.expand('~/.config/nvim/script/sv_parser/format_v.py')
+    local output_text = vim.fn.system(
+        'python3 ' .. vim.fn.shellescape(python_script),
+        input_text
+    )
+    local aligned_lines = vim.split(output_text, "\n")
+    for i, aligned in ipairs(aligned_lines) do
+        local new_line = (i == 1) and lines[i]:sub(1, col1 - 1) or ''
+        new_line = new_line .. aligned
+        new_line = new_line .. ((i == #aligned_lines) and lines[i]:sub(col2 + 1) or '')
+        vim.fn.setline(line1 + i - 1, new_line)
+    end
+end
+vim.api.nvim_create_user_command("SvAlignBlock", SvAlignBlock, { range = true })
+-- BLOCK_END
 
 
 -- BLOCK_END
