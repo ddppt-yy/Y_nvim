@@ -136,7 +136,7 @@ function SvAlignBlock(opts)
         vim.fn.setline(line1 + i - 1, aligned)
     end
 end
-vim.api.nvim_create_user_command("SvAlignBlock", SvAlignBlock, { range = true })
+vim.api.nvim_create_user_command("YhSvAlignBlock", SvAlignBlock, { range = true })
 -- BLOCK_END
 
 

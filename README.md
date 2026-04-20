@@ -171,10 +171,11 @@ The leader key is set to `,` (comma)
 
 ### SystemVerilog
 
-| Command                 | Description                                         |
-| ----------------------- | --------------------------------------------------- |
-| `:YhGenVeribleFilelist` | Generate verible.filelist for SystemVerilog project |
-| `:YhFormatFile`         | Format current file using LSP                       |
+| Command                 | Description                                                                  |
+| ----------------------- | ---------------------------------------------------------------------------- |
+| `:YhGenVeribleFilelist` | Generate verible.filelist for SystemVerilog project (using fd/fdfind)        |
+| `:YhFormatFile`         | Format current file (stylua for Lua, LSP for others)                         |
+| `:YhSvAlignBlock`       | Align selected SystemVerilog block using Python script (range command)       |
 
 ### File Search
 
@@ -355,11 +356,15 @@ Located at `script/rgb.py`, used to change background colors for the terminal.
 
 ### Verible Filelist Generator
 
-Use the command `:YhGenVeribleFilelist` or manually:
+Use the command `:YhGenVeribleFilelist` (automatically uses `fd`/`fdfind` to find `.v`, `.sv`, `.svh`, `.vh` files under `rtl/` directories) or manually:
 
 ```bash
-find . -name "*.sv" -o -name "*.svh" -o -name "*.v" | sort > verible.filelist
+fd -t f -e v -e sv -e svh -e vh --full-path ".*/rtl/.*" | sort > verible.filelist
 ```
+
+### SV Align Block
+
+Use the command `:YhSvAlignBlock` on a visual selection to align SystemVerilog code. This calls `script/sv_parser/format_v.py` to process the selected block.
 
 ---
 
@@ -458,4 +463,4 @@ Common Telescope commands:
 
 ---
 
-**Last Updated**: 2026-03-13
+**Last Updated**: 2026-04-20
