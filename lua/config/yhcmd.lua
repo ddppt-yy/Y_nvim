@@ -133,10 +133,7 @@ function SvAlignBlock(opts)
     )
     local aligned_lines = vim.split(output_text, "\n")
     for i, aligned in ipairs(aligned_lines) do
-        local new_line = (i == 1) and lines[i]:sub(1, col1 - 1) or ''
-        new_line = new_line .. aligned
-        new_line = new_line .. ((i == #aligned_lines) and lines[i]:sub(col2 + 1) or '')
-        vim.fn.setline(line1 + i - 1, new_line)
+        vim.fn.setline(line1 + i - 1, aligned)
     end
 end
 vim.api.nvim_create_user_command("SvAlignBlock", SvAlignBlock, { range = true })
