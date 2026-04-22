@@ -69,7 +69,31 @@ return {
 		priority = 1000,
 		lazy = false,
 		opts = {
-			-- 只开启 indent，其他模块保持默认关闭
+			-- ========== 推荐开启 ==========
+			bigfile = { enabled = true },       -- 大文件保护：自动禁用 Treesitter/折叠等，防止卡死
+			quickfile = { enabled = true },     -- 快速文件渲染：nvim 打开文件时先渲染内容再加载插件
+			words = { enabled = true },         -- LSP 引用高亮：自动高亮光标下符号的所有引用位置，快速跳转
+			scope = { enabled = true },         -- 作用域检测：基于 Treesitter/缩进的作用域 text-object 和跳转
+			gitbrowse = { enabled = true },     -- 浏览器打开 Git 链接：一键在 GitHub/GitLab 打开当前文件（含行号）
+
+			-- ========== 可选开启 ==========
+			dashboard = { enabled = true },     -- 启动仪表盘：漂亮的启动页面
+			-- input = { enabled = true },         -- 美化 vim.ui.input：浮动窗口替代命令行输入
+			statuscolumn = { enabled = true },  -- 美化侧边列：整合行号+折叠标记+gitsigns
+			scroll = { enabled = true },        -- 平滑滚动动画
+			scratch = { enabled = true },       -- 临时便签缓冲区：快速打开可持久化的临时笔记
+			bufdelete = { enabled = true },     -- 智能删除缓冲区而不破坏窗口布局
+			lazygit = { enabled = true },       -- 浮动终端中打开 LazyGit，自动适配 colorscheme
+			terminal = { enabled = true },      -- 浮动/分屏终端管理器
+
+			-- ========== 已有独立插件，保持关闭 ==========
+			-- notifier   → 已有 noice.nvim + nvim-notify，更强大
+			-- picker     → 已有 telescope.nvim，生态更丰富
+			picker = { enabled = true },
+			-- explorer   → 已有 nvim-tree.lua，功能成熟
+			-- indent     → 下方单独配置（彩虹缩进线）
+
+			-- ========== 彩虹缩进线（保留原有自定义） ==========
 			indent = {
 				enabled = true,
 				indent = {
