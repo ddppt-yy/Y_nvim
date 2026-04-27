@@ -79,7 +79,7 @@ return {
 			-- ========== 可选开启 ==========
 			dashboard = { enabled = true },     -- 启动仪表盘：漂亮的启动页面
 			-- input = { enabled = true },         -- 美化 vim.ui.input：浮动窗口替代命令行输入
-			statuscolumn = { enabled = true },  -- 美化侧边列：整合行号+折叠标记+gitsigns
+			-- statuscolumn = { enabled = true },  -- 美化侧边列：整合行号+折叠标记+gitsigns
 			scroll = { enabled = true },        -- 平滑滚动动画
 			scratch = { enabled = true },       -- 临时便签缓冲区：快速打开可持久化的临时笔记
 			bufdelete = { enabled = true },     -- 智能删除缓冲区而不破坏窗口布局

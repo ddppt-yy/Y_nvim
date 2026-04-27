@@ -19,12 +19,14 @@ A lightweight and efficient Neovim configuration based on Lua, specifically desi
 ## Features
 
 - **SystemVerilog Support**: Integrated Verible language server for syntax analysis and completion
-- **AI Code Completion**: Minuet-ai.nvim with Ollama local model support
+- **AI Code Completion**: Minuet-ai.nvim with OpenAI-compatible API support (GLM-5.1)
 - **Modern UI**: Beautiful status line, buffer tabs, and file explorer
 - **Enhanced Editing**: Auto pairs, comments, indentation guides
-- **Git Integration**: Git signs and blame display
+- **Git Integration**: Git signs and blame display, LazyGit integration
 - **Powerful Search**: Telescope-based fuzzy finding
 - **LSP Features**: Go to definition, references, diagnostics, code actions
+- **Snacks Integration**: Dashboard, smooth scroll, bigfile protection, terminal manager, and more
+- **Markdown Enhancement**: Table auto-format, section numbering
 
 ---
 
@@ -36,7 +38,7 @@ A lightweight and efficient Neovim configuration based on Lua, specifically desi
 - Python 3 (for various tools)
 - Git
 - [Verible](https://github.com/chipsalliance/verible) (for SystemVerilog)
-- [Ollama](https://ollama.ai/) (optional, for AI completion)
+- OpenAI-compatible API endpoint (optional, for AI completion)
 
 ### Installation
 
@@ -127,7 +129,7 @@ The leader key is set to `,` (comma)
 | `gr`         | Normal        | Rename symbol (Lspsaga)                   |
 | `go`         | Normal        | Show line diagnostics                     |
 | `gn`         | Normal        | Go to next diagnostic                     |
-| `<leader>cd` | Normal        | Show cursor diagnostics                   |
+| `<leader>cd` | Normal        | Show cursor/line diagnostics              |
 | `<leader>ca` | Normal/Visual | Code action                               |
 
 ### AI Completion (Minuet-ai)
@@ -196,14 +198,22 @@ The leader key is set to `,` (comma)
 #### 2. **Completion & Snippets**
 
 - **[nvim-cmp](https://github.com/hrsh7th/nvim-cmp)** - Autocompletion engine
+  - [cmp-nvim-lsp](https://github.com/hrsh7th/cmp-nvim-lsp) - LSP completion source
+  - [cmp-nvim-lua](https:///github.com/hrsh7th/cmp-nvim-lua) - Neovim Lua API completion
+  - [cmp-buffer](https://github.com/hrsh7th/cmp-buffer) - Buffer word completion
+  - [cmp-path](https://github.com/hrsh7th/cmp-path) - File path completion
+  - [cmp-cmdline](https://github.com/hrsh7th/cmp-cmdline) - Command line completion
+  - [cmp-vsnip](https://github.com/hrsh7th/cmp-vsnip) - Vsnip completion source
+  - [cmp_luasnip](https://github.com/saadparwaiz1/cmp_luasnip) - LuaSnip completion source
+  - [cmp-dictionary](https://github.com/uga-rosa/cmp-dictionary) - Dictionary-based completion
+  - [lspkind-nvim](https://github.com/onsails/lspkind-nvim) - Pictogram icons for LSP completion
 - **[LuaSnip](https://github.com/L3MON4D3/LuaSnip)** - Snippet engine
 - **[friendly-snippets](https://github.com/rafamadriz/friendly-snippets)** - Pre-defined snippets
-- **[cmp-dictionary](https://github.com/uga-rosa/cmp-dictionary)** - Dictionary-based completion
 - **[vim-vsnip](https://github.com/hrsh7th/vim-vsnip)** - VSCode snippet format support
 
 #### 3. **AI Assistance**
 
-- **[minuet-ai.nvim](https://github.com/milanglacier/minuet-ai.nvim)** - AI-powered code completion (supports Ollama, OpenAI)
+- **[minuet-ai.nvim](https://github.com/milanglacier/minuet-ai.nvim)** - AI-powered code completion (supports OpenAI-compatible API, currently using GLM-5.1)
 
 #### 4. **Language Server Protocol (LSP)**
 
@@ -223,31 +233,33 @@ The leader key is set to `,` (comma)
 - **[Comment.nvim](https://github.com/numToStr/Comment.nvim)** - Toggle comments
 - **[Align](https://github.com/vim-scripts/Align)** - Column alignment tool
 
+#### 7. **Lua Development**
+
+- **[lazydev.nvim](https://github.com/folke/lazydev.nvim)** - Better Lua development with lazy loading support
+
 ### UI & Status Line
 
-#### 7. **Status Line**
+#### 8. **Status Line**
 
-- **[lualine.nvim](https://github.com/nvim-lualine/lualine.nvim)** - Fast and customizable status line
+- **[lualine.nvim](https://github.com/nvim-lualine/lualine.nvim)** - Fast and customizable status line (with Catppuccin theme, AI status, LSP info, file size)
 
-#### 8. **Buffer & Tab Display**
+#### 9. **Buffer & Tab Display**
 
-- **[bufferline.nvim](https://github.com/akinsho/bufferline.nvim)** - Buffer tabs
+- **[bufferline.nvim](https://github.com/akinsho/bufferline.nvim)** - Buffer tabs with LSP diagnostics
 
-#### 9. **File Explorer**
+#### 10. **File Explorer**
 
-- **[nvim-tree.lua](https://github.com/nvim-tree/nvim-tree.lua)** - File tree explorer
+- **[nvim-tree.lua](https://github.com/nvim-tree/nvim-tree.lua)** - File tree explorer (floating window mode)
 
-#### 10. **Code Outline**
+#### 11. **Code Outline**
 
 - **[outline.nvim](https://github.com/hedyhli/outline.nvim)** - Code structure outline view
-
-#### 11. **Indentation Guides**
-
-- **[indent-blankline.nvim](https://github.com/lukas-reineke/indent-blankline.nvim)** - Indentation guides with rainbow colors
 
 #### 12. **Notifications & Messages**
 
 - **[noice.nvim](https://github.com/folke/noice.nvim)** - Modern UI for notifications and messages
+  - [nui.nvim](https://github.com/MunifTanjim/nui.nvim) - UI component library
+  - [nvim-notify](https://github.com/rcarriga/nvim-notify) - Notification manager
 
 #### 13. **Cursor Effects**
 
@@ -256,7 +268,7 @@ The leader key is set to `,` (comma)
 #### 14. **Themes & Transparency**
 
 - **[tokyonight.nvim](https://github.com/folke/tokyonight.nvim)** - Tokyo Night theme
-- **[catppuccin/nvim](https://github.com/catppuccin/nvim)** - Catppuccin theme
+- **[catppuccin/nvim](https://github.com/catppuccin/nvim)** - Catppuccin theme (current: Macchiato)
 - **[transparent.nvim](https://github.com/xiyaowong/transparent.nvim)** - Transparent background support
 - **[nvim-web-devicons](https://github.com/nvim-tree/nvim-web-devicons)** - File type icons
 
@@ -272,6 +284,39 @@ The leader key is set to `,` (comma)
 #### 16. **Git Tools**
 
 - **[gitsigns.nvim](https://github.com/lewis6991/gitsigns.nvim)** - Git signs and blame
+
+### All-in-One Enhancement
+
+#### 17. **Snacks**
+
+- **[snacks.nvim](https://github.com/folke/snacks.nvim)** - Collection of small QoL improvements, including:
+  - **bigfile** - Large file protection (auto-disable Treesitter/folding)
+  - **quickfile** - Fast file rendering
+  - **words** - LSP reference highlight
+  - **scope** - Scope detection (Treesitter/indent based)
+  - **gitbrowse** - Open Git links in browser
+  - **dashboard** - Startup dashboard
+  - **statuscolumn** - Beautified side column (line numbers + fold marks + gitsigns)
+  - **scroll** - Smooth scroll animation
+  - **scratch** - Temporary scratch buffer
+  - **bufdelete** - Smart buffer deletion
+  - **lazygit** - LazyGit integration
+  - **terminal** - Floating/split terminal manager
+  - **picker** - Snacks picker
+  - **indent** - Rainbow indent lines (replaces indent-blankline)
+
+### Markdown Support
+
+#### 18. **Markdown Tools**
+
+- **[vim-table-mode](https://github.com/dhruvasagar/vim-table-mode)** - Auto table formatting (GitHub Flavored Markdown)
+- **[md-section-number.nvim](https://github.com/whitestarrain/md-section-number.nvim)** - Auto section numbering on save
+
+### TODO & Comments
+
+#### 19. **TODO Comments**
+
+- **[todo-comments.nvim](https://github.com/folke/todo-comments.nvim)** - Highlight and search TODO/FIX/HACK comments
 
 ---
 
@@ -310,7 +355,8 @@ Automatically installed parsers:
 │   │   ├── common_setting.lua  # General settings
 │   │   ├── yhcmd.lua       # Custom commands
 │   │   ├── lazy.lua        # Lazy.nvim setup
-│   │   └── colorscheme.lua # Theme configuration
+│   │   ├── colorscheme.lua # Theme configuration
+│   │   └── stylua.toml     # Stylua formatter config
 │   ├── plugins/            # Plugin configurations
 │   │   ├── cmp.lua         # Completion
 │   │   ├── lsp.lua         # LSP setup
@@ -325,8 +371,9 @@ Automatically installed parsers:
 │   │   ├── comment.lua     # Comments
 │   │   ├── outline.lua     # Code outline
 │   │   ├── noice.lua       # Notifications
-│   │   ├── indent-blankline.lua  # Indent guides
 │   │   ├── rainbow.lua     # Rainbow delimiters
+│   │   ├── snacks.lua      # Snacks (indent, dashboard, scroll, terminal, etc.)
+│   │   ├── lazydev.lua     # Lua development
 │   │   ├── minuet-ai.lua   # AI completion
 │   │   ├── theme.lua       # Themes
 │   │   ├── transparent.lua # Transparency
@@ -340,10 +387,13 @@ Automatically installed parsers:
 │       │   ├── markdown.json
 │       │   ├── systemverilog.json
 │       │   └── verilog.json
+│       ├── dict.dict       # Dictionary for completion
 │       └── package.json
 └── script/
     ├── rgb.py              # Background color changer
-    └── nvim_zip.sh         # Backup script
+    ├── nvim_zip.sh         # Backup script
+    └── sv_parser/
+        └── format_v.py     # SV align script
 ```
 
 ---
@@ -376,10 +426,14 @@ Use the command `:YhSvAlignBlock` on a visual selection to align SystemVerilog c
 - **Leader Key**: `,`
 - **Line Numbers**: Enabled
 - **Cursor Line/Column Highlighting**: Enabled
+- **Color Column**: 120 (visual column indicator)
 - **Auto Read**: Files reloaded when changed externally
+- **Auto Chdir**: Automatically change CWD to current buffer's directory
+- **Scroll Offset**: 8 lines (sidescroll: 8)
 - **Split Windows**: Below and right
 - **Colors**: 256 colors with true color support
-- **Background**: Dark (Tokyonight Moon / Catppuccin Macchiato)
+- **Background**: Dark (Catppuccin Macchiato / Tokyonight Moon)
+- **Sign Column**: Always visible (`yes`)
 
 ### Indentation
 
@@ -397,8 +451,19 @@ Use the command `:YhSvAlignBlock` on a visual selection to align SystemVerilog c
 ### Files & Backups
 
 - **Backup**: Disabled
+- **Write Backup**: Enabled (temp backup before save, deleted after success)
 - **Swap Files**: Disabled
 - **File Format**: Unix
+
+### Completion
+
+- **Complete Opt**: `menu,menuone,noselect,noinsert`
+- **Popup Height**: 10 lines max
+- **Wild Menu**: Enabled
+
+### Folding
+
+- **Method**: Marker (`BLOCK_BEGIN` / `BLOCK_END`)
 
 ---
 
@@ -432,7 +497,15 @@ Common Telescope commands:
 :Outline                       " Toggle code outline
 :BufferDelete                  " Delete buffer nicely
 :TransparentToggle             " Toggle transparency
+:Snacks scratch                " Open scratch buffer
+:Snacks terminal               " Open terminal
+:Snacks lazygit                " Open LazyGit
+:Snacks dashboard              " Open dashboard
 ```
+
+### AI Completion
+
+Minuet-ai is configured with OpenAI-compatible API (GLM-5.1 model). Set the environment variable `MINUET_END_POINT` to your API endpoint. Auto-trigger is enabled for `verilog`, `systemverilog`, `python`, `shell`, and `markdown` file types.
 
 ---
 
@@ -444,6 +517,7 @@ Common Telescope commands:
 2. **LSP not working**: Run `:Mason` and check if language servers are installed
 3. **Icons not showing**: Install a Nerd Font
 4. **Slow startup**: Check `:Lazy profile` for slow plugins
+5. **Snacks features missing**: Run `:Lazy sync` to ensure snacks.nvim is up to date
 
 ### Debugging
 
@@ -451,6 +525,7 @@ Common Telescope commands:
 :Lazy profile                  " Check plugin load times
 :LspLog                        " View LSP logs
 :messages                      " View Neovim messages
+:Snacks                        " Check Snacks status
 ```
 
 ---
@@ -460,7 +535,8 @@ Common Telescope commands:
 - [Neovim Lua Guide](https://github.com/glepnir/nvim-lua-guide-zh)
 - [Verible Documentation](https://github.com/chipsalliance/verible)
 - [Lazy.nvim Documentation](https://github.com/folke/lazy.nvim)
+- [Snacks.nvim Documentation](https://github.com/folke/snacks.nvim)
 
 ---
 
-**Last Updated**: 2026-04-20
+**Last Updated**: 2026-04-22
