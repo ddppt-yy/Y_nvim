@@ -70,6 +70,10 @@ map('n', '<leader>cd',  ':cd %:p:h<cr>:pwd<cr>' , opt)
 -- => Editing mappings
 --""""""""""""""""""""
 --BLOCK_BEGIN
+-- 将普通模式下的 <C-z> 映射为「无操作」
+vim.keymap.set('n', '<C-z>', '<nop>', { noremap = true })
+
+
 -- Remap VIM 0 to first non-blank character
 map('n', '0',  '^', opt)
 
