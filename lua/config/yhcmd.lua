@@ -140,6 +140,38 @@ vim.api.nvim_create_user_command("YhSvAlignBlock", SvAlignBlock, { range = true 
 -- BLOCK_END
 
 
+
+
+-- csv vsp
+-- BLOCK_BEGIN
+-- 定义函数：垂直分屏并绑定滚动
+local function split_and_bind()
+    local original_win = vim.api.nvim_get_current_win()
+    vim.cmd('vsplit')
+    local new_win = vim.api.nvim_get_current_win()
+    -- 获取两个窗口当前宽度
+    local left_width = vim.api.nvim_win_get_width(original_win)
+    local right_width = vim.api.nvim_win_get_width(new_win)
+    local total_width = left_width + right_width
+    local target_left_width = math.floor(total_width / 5)  -- 左侧占1/3
+    -- 调整左侧窗口宽度
+    vim.api.nvim_win_set_width(original_win, target_left_width)
+    -- 绑定滚动
+    vim.api.nvim_win_set_option(original_win, 'scrollbind', true)
+    vim.api.nvim_win_set_option(new_win, 'scrollbind', true)
+    vim.api.nvim_win_set_option(new_win, 'number', false)
+    vim.api.nvim_win_set_option(new_win, 'relativenumber', false)
+end
+
+-- 注册用户命令 :yhcsvvsp
+vim.api.nvim_create_user_command('YhCsvVsp', split_and_bind, {})
+-- BLOCK_END
+
+
+
+
+
+
 -- BLOCK_END
 
 
