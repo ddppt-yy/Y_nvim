@@ -1,0 +1,55 @@
+[mgr]
+# Manager layout by ratio, 3-element array. For example:
+# [1, 4, 3]: 1/8 width for parent, 4/8 width for current, 3/8 width for preview
+# Set the value to 0 to hide the corresponding panel, but at least one panel must be visible
+ratio = [1, 4, 3]
+# File sorting method.
+# "none": Don't sort.
+# "mtime": Sort by last modified time.
+# "btime": Sort by birth time.
+# "extension": Sort by file extension.
+# "alphabetical": Sort alphabetically, e.g. 1.md < 10.md < 2.md
+# "natural": Sort naturally, e.g. 1.md < 2.md < 10.md
+# "size": Sort by file size.
+# "random": Sort randomly.
+sort_by = "natural"
+
+# Sort case-sensitively.
+sort_sensitive = true
+
+
+# Display directories first.
+sort_dir_first = false
+
+# Transliterate filenames for sorting (i.e. replace Â with A, Æ with AE, etc.), only available if
+sort_translit = true
+
+# Line mode: display information associated with the file on the right side of the file list row.
+# "none": No line mode.
+# "size": Display the size in bytes of the file. Note that currently directory sizes are only evaluated when sort_by = "size", and this might change in the future.
+# "btime": Display the birth time of the file.
+# "mtime": Display the last modified time of the file.
+# "permissions": Display the permissions of the file, only available on Unix-like systems.
+# "owner": Display the owner of the file, only available on Unix-like systems.
+linemode = "size_time_perm"
+
+# Show hidden files.
+show_hidden = true
+
+# Show the path that the symlink points to after the filename.
+show_symlink = true
+
+
+[preview]
+# Wrap long lines in the code preview.
+wrap = "no"
+
+# The width of a tab character (\t) in spaces.
+tab_size = 4
+
+
+[opener]
+edit = [
+	{ run = "/usr/sbin/nvim  %s", desc = "$EDITOR",      for = "unix", block = true },
+]
+
