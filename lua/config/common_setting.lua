@@ -304,7 +304,9 @@ vim.opt.foldmarker="BLOCK_BEGIN,BLOCK_END"
 
 --vim.opt.colorscheme = "desert" --TODO
 --share clipboard with windows
-vim.opt.clipboard:append("unnamed")
+-- vim.opt.clipboard:append("unnamed")
+vim.opt.clipboard:append("unnamedplus")
+-- vim.opt.clipboard:append { "unnamed", "unnamedplus" }
 
 vim.opt.autochdir = true
 
