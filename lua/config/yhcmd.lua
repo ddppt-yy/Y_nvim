@@ -18,6 +18,15 @@ local function get_git_root()
 	return git_root and git_root ~= "" and git_root or nil
 end
 
+
+-- 获取主机名的函数
+function uname_n()
+    local handle = io.popen("uname -n 2>/dev/null") or ""
+    local hostname = handle:read("*a"):gsub("\n$", "")  -- 去除末尾换行
+    handle:close()
+    print(hostname)  -- 例如 "homewin11"
+end
+
 --------------------------------------------------
 -- user func
 --------------------------------------------------
