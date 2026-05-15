@@ -1,3 +1,19 @@
+-- 🚀 安全初始化 th 和 th.git 表
+th = th or {}
+th.git = th.git or {}
+
+th.git.unknown_sign    = "❔"
+th.git.modified_sign   = "✏️"
+th.git.added_sign      = "➕"
+th.git.untracked_sign  = "❓"
+th.git.ignored_sign    = "🚫"
+th.git.deleted_sign    = "➖"
+th.git.updated_sign    = "🔄"
+th.git.clean_sign      = "✅"
+require("git"):setup {
+	-- Order of status signs showing in the linemode
+	order = 1500,
+}
 -- 与 yazi.toml 同目录下的 init.lua
 function Linemode:size_time_perm()
     -- 获取文件修改时间（使用官方推荐的 mtime）
@@ -30,3 +46,11 @@ function Linemode:size_time_perm()
     -- 组合显示内容，调整顺序和间距
     return ui.Line(string.format(" %s  %s  %s ", perm_str, size_str, time_str))
 end
+
+
+
+
+
+
+
+
