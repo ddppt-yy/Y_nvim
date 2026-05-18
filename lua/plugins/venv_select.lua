@@ -1,6 +1,7 @@
 return {
     "linux-cultist/venv-selector.nvim",
     dependencies = { "nvim-telescope/telescope.nvim" }, -- 依赖 Telescope UI
+    ft = "python",
     opts = {
         -- 在此处添加你的自定义配置
         parents = 3,             -- 向上搜索父目录的层级数，默认为 2
