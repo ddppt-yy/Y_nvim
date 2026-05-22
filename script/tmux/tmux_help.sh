@@ -15,69 +15,86 @@ tmux_cmd() {
 }
 
 # --- 定义类别及对应的 tmux 命令 ---
-# 格式: 显示文本: tmux 命令（不含前导 "tmux" 和 "-t target"）
+# 格式: 显示文本（含对应 tmux 快捷键）: tmux 命令（不含前导 "tmux" 和 "-t target"）
 declare -A categories
 
 categories["📄 窗口操作"]="
-新建窗口: new-window
-重命名窗口: command-prompt -p \"窗口名称\" \"rename-window '%%'\"
-关闭当前窗口: confirm-before -p \"关闭窗口? (y/n)\" \"kill-window\"
-窗口列表: choose-window
-下一个窗口: next-window
-上一个窗口: previous-window
-切换至窗口0: select-window -t :0
-切换至窗口1: select-window -t :1
-切换至窗口2: select-window -t :2
-切换至窗口3: select-window -t :3
-切换至窗口4: select-window -t :4
-切换至窗口5: select-window -t :5
-切换至窗口6: select-window -t :6
-切换至窗口7: select-window -t :7
-切换至窗口8: select-window -t :8
-切换至窗口9: select-window -t :9
-查找窗口: command-prompt -p \"窗口名/编号\" \"find-window '%%'\"
-移动窗口至指定编号: command-prompt -p \"目标窗口编号\" \"move-window -t '%%'\"
+新建窗口（Prefix + c）: new-window
+重命名窗口（Prefix + ,）: command-prompt -p \"窗口名称\" \"rename-window '%%'\"
+关闭当前窗口（Prefix + &）: confirm-before -p \"关闭窗口? (y/n)\" \"kill-window\"
+窗口列表/选择窗口（Prefix + w）: choose-window
+下一个窗口（Prefix + n）: next-window
+上一个窗口（Prefix + p）: previous-window
+最近使用的窗口（Prefix + l）: last-window
+切换至窗口0（Prefix + 0）: select-window -t :0
+切换至窗口1（Prefix + 1）: select-window -t :1
+切换至窗口2（Prefix + 2）: select-window -t :2
+查找窗口（Prefix + f）: command-prompt -p \"窗口名/编号\" \"find-window '%%'\"
+移动当前窗口至指定编号（Prefix + .）: command-prompt -p \"目标窗口编号\" \"move-window -t '%%'\"
+交换当前窗口与指定窗口（Prefix + : swap-window -t）: command-prompt -p \"目标窗口编号\" \"swap-window -t '%%'\"
 "
 
 categories["└─ 窗格操作"]="
-水平拆分窗格: split-window -h
-垂直拆分窗格: split-window -v
-切换至左窗格: select-pane -L
-切换至右窗格: select-pane -R
-切换至上窗格: select-pane -U
-切换至下窗格: select-pane -D
-关闭当前窗格: confirm-before -p \"关闭窗格? (y/n)\" \"kill-pane\"
-最大化/恢复当前窗格: resize-pane -Z
-与上一个窗格交换位置: swap-pane -U
-与下一个窗格交换位置: swap-pane -D
-切换窗格布局: next-layout
-将当前窗格移至新窗口: join-pane -h -s "$PARENT_PANE" -t :new
-显示窗格编号: display-panes
+水平拆分窗格/左右分屏（Prefix + %）: split-window -h
+垂直拆分窗格/上下分屏（Prefix + \"）: split-window -v
+切换至左窗格（Prefix + ←）: select-pane -L
+切换至右窗格（Prefix + →）: select-pane -R
+切换至上窗格（Prefix + ↑）: select-pane -U
+切换至下窗格（Prefix + ↓）: select-pane -D
+切换至上一个窗格（Prefix + ;）: last-pane
+顺序切换下一个窗格（Prefix + o）: select-pane -t :.+
+关闭当前窗格（Prefix + x）: confirm-before -p \"关闭窗格? (y/n)\" \"kill-pane\"
+最大化/恢复当前窗格（Prefix + z）: resize-pane -Z
+向上调整窗格大小（Prefix + Ctrl+↑）: resize-pane -U 5
+向下调整窗格大小（Prefix + Ctrl+↓）: resize-pane -D 5
+向左调整窗格大小（Prefix + Ctrl+←）: resize-pane -L 5
+向右调整窗格大小（Prefix + Ctrl+→）: resize-pane -R 5
+与上一个窗格交换位置（Prefix + {）: swap-pane -U
+与下一个窗格交换位置（Prefix + }）: swap-pane -D
+顺时针轮换窗格（Prefix + Ctrl+o）: rotate-window
+切换窗格布局（Prefix + Space）: next-layout
+切换至 even-horizontal 布局（Prefix + Alt+1）: select-layout even-horizontal
+切换至 even-vertical 布局（Prefix + Alt+2）: select-layout even-vertical
+切换至 main-horizontal 布局（Prefix + Alt+3）: select-layout main-horizontal
+切换至 main-vertical 布局（Prefix + Alt+4）: select-layout main-vertical
+切换至 tiled 布局（Prefix + Alt+5）: select-layout tiled
+将当前窗格拆成新窗口（Prefix + !）: break-pane
+显示窗格编号（Prefix + q）: display-panes
+显示窗格信息（自定义菜单项）: display-message \"窗格: #P  ID: #D  路径: #{pane_current_path}\"
 "
 
 categories["🖥️ 会话管理"]="
-脱离会话: detach-client
-会话列表: choose-session
-重命名会话: command-prompt -p \"会话名称\" \"rename-session '%%'\"
-切换至上个会话: switch-client -l
-切换至上一个会话: switch-client -p
-切换至下一个会话: switch-client -n
+脱离会话（Prefix + d）: detach-client
+会话列表/选择会话（Prefix + s）: choose-session
+重命名会话（Prefix + $）: command-prompt -p \"会话名称\" \"rename-session '%%'\"
+切换至最近使用会话（Prefix + L）: switch-client -l
+切换至上一个会话（Prefix + (）: switch-client -p
+切换至下一个会话（Prefix + )）: switch-client -n
+新建会话（Prefix + : new-session）: command-prompt -p \"新会话名称\" \"new-session -s '%%'\"
+关闭当前会话（Prefix + : kill-session）: confirm-before -p \"关闭当前会话? (y/n)\" \"kill-session\"
 "
 
 categories["📋 复制粘贴"]="
-进入复制模式: copy-mode
-粘贴缓冲区内容: paste-buffer
-列出粘贴缓冲区: list-buffers
-进入复制模式并向上滚动: copy-mode -u
+进入复制模式（Prefix + [）: copy-mode
+进入复制模式并向上滚动（无默认快捷键）: copy-mode -u
+粘贴缓冲区内容（Prefix + ]）: paste-buffer
+列出粘贴缓冲区（Prefix + #）: list-buffers
+选择粘贴缓冲区（Prefix + =）: choose-buffer
+删除最近的粘贴缓冲区（Prefix + -）: delete-buffer
 "
 
 categories["⚙️ 其他"]="
-显示时钟: clock-mode
-显示当前窗口信息: display-message \"窗口: #W  (#I)  窗格: #P  会话: #S\"
-显示消息历史: show-messages
-强制重绘客户端: refresh-client
-切换至上一个窗口: previous-window
-列出所有快捷键: list-keys
+命令提示符（Prefix + :）: command-prompt
+显示快捷键帮助菜单（Prefix + /，当前自定义）: display-popup -E \"~/.tmux/tmux_help.sh\"
+列出所有快捷键（Prefix + ?）: list-keys
+显示时钟（Prefix + t）: clock-mode
+显示消息历史（Prefix + ~）: show-messages
+强制重绘客户端（Prefix + r）: refresh-client
+显示 tab 栏/状态栏（Prefix + : set -g status on）: set-option -g status on
+关闭 tab 栏/状态栏（Prefix + : set -g status off）: set-option -g status off
+刷新 tmux 配置（Prefix + : source-file ~/.tmux.conf）: source-file ~/.tmux.conf
+显示当前窗口信息（自定义菜单项）: display-message \"窗口: #W  (#I)  窗格: #P  会话: #S\"
+显示 tmux 版本（自定义菜单项）: display-message \"tmux #{version}\"
 "
 # 注意：某些命令需要确认或额外参数，已经处理。
 
@@ -126,6 +143,6 @@ selected_item=$(echo "$items" | sed '/^$/d' | fzf \
 
 [[ -z "$selected_item" ]] && exit 0
 
-# 提取命令部分（冒号后，忽略前导空格）
-cmd="${selected_item#*: }"
+# 提取命令部分（快捷键说明后的全角右括号 + 冒号后，忽略前导空格）
+cmd="${selected_item#*）: }"
 execute_tmux_command "$cmd"
