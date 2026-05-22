@@ -104,7 +104,16 @@ execute_tmux_command() {
     if [ -z "$cmd" ]; then
         return
     fi
-    # 对于需要交互的命令（如 command-prompt），直接执行；否则在后台执行避免阻塞 fzf
+
+    # 对于命令文本中包含引号的项目，不直接执行，改为把需要执行的 tmux 命令 echo 到父窗格终端中。
+    # 这类命令通常包含 command-prompt / confirm-before / display-message 等复杂 quoting，直接拆词执行容易出错。
+    if [[ "$cmd" == *\"* ]]; then
+        tmux send-keys -t "$PARENT_PANE" "echo $(printf '%q' "tmux $cmd")" C-m
+        sleep 0.1
+        return
+    fi
+
+    # 对于需要交互的命令，直接执行；否则在后台执行避免阻塞 fzf
     if [[ "$cmd" == command-prompt* ]] || [[ "$cmd" == confirm-before* ]] || [[ "$cmd" == choose-* ]]; then
         tmux_cmd $cmd &
     else
