@@ -21,9 +21,9 @@ return {
 			provider_options = {
 				openai_compatible = {
 					api_key = "MINUET_API_KEY",
-					name = "GLM-5.1",
+					name = "DeepSeek-v4-Flash",
 					end_point = os.getenv("MINUET_END_POINT") or "",
-					model = "glm-5.1",
+					model = "deepseek-v4-flash",
 					stream = true,
 					optional = {
 						-- max_tokens: max generated tokens per completion.
