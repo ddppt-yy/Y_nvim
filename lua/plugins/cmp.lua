@@ -12,7 +12,7 @@ return {
 			"hrsh7th/cmp-buffer",
 			"hrsh7th/cmp-path",
 			"hrsh7th/cmp-cmdline",
-			"jose-elias-alvarez/null-ls.nvim",
+            "nvimtools/none-ls.nvim",
 			"saadparwaiz1/cmp_luasnip",
 			"onsails/lspkind-nvim",
 			"L3MON4D3/LuaSnip", -- snippets引擎，不装这个自动补全会出问题
