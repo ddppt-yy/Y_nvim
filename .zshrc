@@ -130,7 +130,7 @@ alias ls="lsd -ah"
 alias ll="lsd -l -ah"
 alias mv='mv -i'
 alias rm='trash '
-
+alias inst='python ~/.config/nvim/script/sv_parser/inst.py   '
 alias sc='source ~/.zshrc'
 alias vimrc='vim ~/.vimrc'
 alias which='alias | /usr/bin/which --tty-only --read-alias --show-dot --show-tilde'
