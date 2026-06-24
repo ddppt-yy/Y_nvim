@@ -6,9 +6,11 @@ export PATH=~/.local/share/nvim/mason/bin:$HOME/bin:/usr/local/bin:$PATH
 #export PATH=~/tools/lsd/:$PATH
 #export PATH=~/tools/yazi/:$PATH
 export PATH="$HOME/.local/bin:$PATH"
-
+export PYENV_ROOT="$HOME/.pyenv"
+export PATH="$PYENV_ROOT/bin:$PATH"
 # Path to your oh-my-zsh installation.
 export ZSH="$HOME/.oh-my-zsh"
+export PATH=~/picker/bin:$HOME/bin:/usr/local/bin:$PATH
 
 # Set name of the theme to load --- if set to "random", it will
 # load a random theme each time oh-my-zsh is loaded, in which case,
@@ -163,7 +165,6 @@ export NVM_DIR="$HOME/.nvm"
 
 # 初始化 Starship 提示符
 eval "$(starship init zsh)"
-
 eval "$(zoxide init zsh)"
-
-
+eval "$(pyenv init --path)"
+eval "$(pyenv init -)"
