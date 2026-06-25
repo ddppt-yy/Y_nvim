@@ -144,7 +144,12 @@ f_sv_inst () {
 }
 alias sv_inst=f_sv_inst
 
-# source ~/tmux_alias.zsh
+alias tm_new='tmux new -s '
+alias tm_list='tmux ls '
+alias tm_attach='tmux attach -t '
+alias tm_kill='tmux kill-session -t '
+alias tm_rename='tmux rename-session -t '
+
 source ~/minuet-ai.env.zsh
 
 git config --add oh-my-zsh.hide-dirty 1 
