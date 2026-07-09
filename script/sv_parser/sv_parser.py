@@ -371,6 +371,7 @@ class SvParser:
     )
     _IDENTIFIER_TAGS = ("SymbolIdentifier", "EscapedIdentifier")
     _PORT_DIRECTIONS = ("input", "output", "inout")
+    _MODPORT_DIRECTIONS = ("input", "output", "inout", "ref")
     
     def __init__(self, file_path: str, executable: str = "verible-verilog-syntax"):
         """Initialize the parser with a file path.
@@ -1115,6 +1116,15 @@ class SvParser:
             'import': []
         }
 
+    def _new_interface_info(self) -> dict:
+        """Create module-info compatible output for an interface declaration."""
+        result = self._new_module_info()
+        result['interface'] = {
+            'port': [],
+            'modport': {}
+        }
+        return result
+
     def _is_header_parameter(self, param_decl) -> bool:
         """Return True for parameter declarations from an ANSI header."""
         return self._tag(getattr(param_decl, 'parent', None)) == "kFormalParameterList"
@@ -1127,10 +1137,186 @@ class SvParser:
     def _is_module_header_child(self, node) -> bool:
         """Return True for declarations already handled from kModuleHeader."""
         return self._tag(getattr(node, 'parent', None)) == "kModuleHeader"
-    
+
+    def _is_module_item_child(self, node) -> bool:
+        """Return True for declarations directly under a module/interface body."""
+        return self._tag(getattr(node, 'parent', None)) == "kModuleItemList"
+
+    @staticmethod
+    def _interface_dim(value: str) -> str:
+        """Use module-port style empty dimensions for interface signal ports."""
+        return "" if value == "None" else value
+
+    def _to_interface_port(self, signal_info: tuple) -> tuple:
+        """Convert a signal tuple to an interface port tuple without direction."""
+        name, data_type, packed_dim, unpacked_dim = signal_info
+        return (
+            name,
+            data_type,
+            self._interface_dim(packed_dim),
+            self._interface_dim(unpacked_dim),
+        )
+
+    def _parse_modport_ports_declaration(self, ports_decl) -> List[tuple]:
+        """Parse one modport direction group into (signal, direction) tuples."""
+        direction = ""
+        for child in self._iter_children(ports_decl):
+            if self._tag(child) in self._MODPORT_DIRECTIONS:
+                direction = self._tag(child)
+                break
+
+        if not direction:
+            return []
+
+        ports = []
+        for port in self._iter_children(ports_decl):
+            if self._tag(port) != "kModportSimplePort":
+                continue
+            name = self._get_identifier_name(port)
+            if name:
+                ports.append((name, direction))
+        return ports
+
+    def _parse_modport_item(self, modport_item) -> tuple:
+        """Parse a single modport item into (name, port_list)."""
+        name = self._get_direct_identifier_name(modport_item)
+        ports = []
+        port_list = modport_item.find({"tag": "kModportPortList"})
+        if port_list:
+            for child in self._iter_children(port_list):
+                if self._tag(child) != "kModportSimplePortsDeclaration":
+                    continue
+                ports.extend(self._parse_modport_ports_declaration(child))
+        return name, ports
+
+    def _parse_modport_declaration(self, modport_decl) -> dict:
+        """Parse modport declarations grouped by modport name."""
+        modports = {}
+        item_list = modport_decl.find({"tag": "kModportItemList"})
+        if item_list is None:
+            return modports
+
+        for item in self._iter_children(item_list):
+            if self._tag(item) != "kModportItem":
+                continue
+            name, ports = self._parse_modport_item(item)
+            if name:
+                modports.setdefault(name, []).extend(ports)
+        return modports
+
+    def _append_header_info(self, result: dict, declaration) -> Optional[Node]:
+        """Fill declaration name and ANSI parameters from its header."""
+        header = declaration.find({"tag": "kModuleHeader"})
+        if header is None:
+            return None
+
+        name_id = header.find({"tag": list(self._IDENTIFIER_TAGS)})
+        if name_id:
+            result['name'] = self._get_text(name_id)
+
+        for param in header.iter_find_all({"tag": "kParamDeclaration"}):
+            result['para'].append(self._parse_parameter(param))
+
+        return header
+
+    def _append_imports(self, result: dict, declaration):
+        """Append package imports from a module/interface declaration."""
+        for import_decl in declaration.iter_find_all({"tag": "kPackageImportItem"}):
+            import_str = self._parse_import(import_decl)
+            if import_str:
+                result['import'].append(import_str)
+
+    def _append_body_params(self, result: dict, declaration):
+        """Append non-header parameters and localparameters."""
+        for param_decl in declaration.iter_find_all({"tag": "kParamDeclaration"}):
+            if self._is_header_parameter(param_decl):
+                continue
+
+            if self._is_localparam(param_decl):
+                result['lpara'].append(self._parse_localparam(param_decl))
+            else:
+                result['para'].append(self._parse_parameter(param_decl))
+
+    def _collect_signal_entries(self, declaration,
+                                top_level_only: bool = False) -> List[tuple]:
+        """Collect data/net declarations ordered by source position."""
+        signal_entries = []
+
+        for data_decl in declaration.iter_find_all({"tag": "kDataDeclaration"}):
+            if self._is_module_header_child(data_decl):
+                continue
+            if top_level_only and not self._is_module_item_child(data_decl):
+                continue
+
+            signal_info = self._parse_data_declaration(data_decl)
+            if signal_info[0]:
+                pos = data_decl.start if data_decl.start is not None else 0
+                signal_entries.append((pos, signal_info))
+
+        for net_decl in declaration.iter_find_all({"tag": "kNetDeclaration"}):
+            if top_level_only and not self._is_module_item_child(net_decl):
+                continue
+
+            signal_info = self._parse_net_declaration(net_decl)
+            if signal_info[0]:
+                pos = net_decl.start if net_decl.start is not None else 0
+                signal_entries.append((pos, signal_info))
+
+        signal_entries.sort(key=lambda x: x[0])
+        return signal_entries
+
+    def _parse_module_declaration(self, module) -> dict:
+        """Build parser output for a module declaration."""
+        result = self._new_module_info()
+        header = self._append_header_info(result, module)
+        header_port_order = []
+
+        if header:
+            header_port_order = self._get_module_header_port_names(header)
+            for port in header.iter_find_all({"tag": "kPortDeclaration"}):
+                result['port'].append(self._parse_port_declaration(port))
+
+        if not result['port']:
+            module_ports = []
+            for module_port_decl in module.iter_find_all(
+                    {"tag": "kModulePortDeclaration"}):
+                module_ports.extend(
+                    self._parse_module_port_declaration(module_port_decl))
+            result['port'] = self._order_ports_by_header(
+                module_ports, header_port_order)
+
+        self._append_imports(result, module)
+        self._append_body_params(result, module)
+
+        signal_entries = self._collect_signal_entries(module)
+        result['signal'] = [info for _, info in signal_entries]
+
+        return result
+
+    def _parse_interface_declaration(self, interface_decl) -> dict:
+        """Build parser output for a SystemVerilog interface declaration."""
+        result = self._new_interface_info()
+        self._append_header_info(result, interface_decl)
+        self._append_imports(result, interface_decl)
+        self._append_body_params(result, interface_decl)
+
+        signal_entries = self._collect_signal_entries(
+            interface_decl, top_level_only=True)
+        result['interface']['port'] = [
+            self._to_interface_port(info) for _, info in signal_entries
+        ]
+
+        for modport_decl in interface_decl.iter_find_all(
+                {"tag": "kModportDeclaration"}):
+            for name, ports in self._parse_modport_declaration(
+                    modport_decl).items():
+                result['interface']['modport'].setdefault(name, []).extend(ports)
+
+        return result
+
     def get_sv_port(self) -> dict:
         """Get module information including ports, parameters, and signals.
-        
+
         Returns:
             A dictionary containing:
                 - name: Module name
@@ -1141,90 +1327,20 @@ class SvParser:
         """
         if self.syntax_data is None or self.syntax_data.tree is None:
             return {}
-        
-        # Find module declaration
-        module = self.syntax_data.tree.find({"tag": "kModuleDeclaration"})
-        if module is None:
-            return {}
-        
-        result = self._new_module_info()
-        
-        # Get module name
-        header = module.find({"tag": "kModuleHeader"})
-        header_port_order = []
-        if header:
-            name_id = header.find({"tag": ["SymbolIdentifier", "EscapedIdentifier"]})
-            if name_id:
-                result['name'] = self._get_text(name_id)
-            header_port_order = self._get_module_header_port_names(header)
-            
-            # Get parameters from header
-            for param in header.iter_find_all({"tag": "kParamDeclaration"}):
-                result['para'].append(self._parse_parameter(param))
-            
-            # Get ports
-            for port in header.iter_find_all({"tag": "kPortDeclaration"}):
-                result['port'].append(self._parse_port_declaration(port))
 
-        # Get old-style Verilog module port declarations from the module body.
-        # These correspond to headers like "module m (a, b);" followed by
-        # separate "input a;" / "output b;" declarations.
-        if not result['port']:
-            module_ports = []
-            for module_port_decl in module.iter_find_all(
-                    {"tag": "kModulePortDeclaration"}):
-                module_ports.extend(
-                    self._parse_module_port_declaration(module_port_decl))
-            result['port'] = self._order_ports_by_header(
-                module_ports, header_port_order)
-        
-        # Get imports from module body
-        for import_decl in module.iter_find_all({"tag": "kPackageImportItem"}):
-            import_str = self._parse_import(import_decl)
-            if import_str:
-                result['import'].append(import_str)
-        
-        # Get localparameters and parameters from module body
-        # Note: verible uses kParamDeclaration for both parameter and localparam
-        # We need to check the first child to determine which one
-        for param_decl in module.iter_find_all({"tag": "kParamDeclaration"}):
-            # Skip if already in header (parent is kFormalParameterList)
-            if self._is_header_parameter(param_decl):
-                continue
-            
-            # Check if it's localparam or parameter
-            if self._is_localparam(param_decl):
-                result['lpara'].append(self._parse_localparam(param_decl))
-            else:
-                result['para'].append(self._parse_parameter(param_decl))
-        
-        # Collect all signal declarations with their source position for ordering
-        signal_entries = []
-        
-        # Get data declarations (signals)
-        for data_decl in module.iter_find_all({"tag": "kDataDeclaration"}):
-            # Skip if parent is kModuleHeader (it's a port declaration)
-            if self._is_module_header_child(data_decl):
-                continue
-            signal_info = self._parse_data_declaration(data_decl)
-            # Skip empty signals (module instantiations)
-            if signal_info[0]:
-                pos = data_decl.start if data_decl.start is not None else 0
-                signal_entries.append((pos, signal_info))
-        
-        # Get net declarations (wire declarations)
-        for net_decl in module.iter_find_all({"tag": "kNetDeclaration"}):
-            signal_info = self._parse_net_declaration(net_decl)
-            if signal_info[0]:
-                pos = net_decl.start if net_decl.start is not None else 0
-                signal_entries.append((pos, signal_info))
-        
-        # Sort by source position to maintain original order
-        signal_entries.sort(key=lambda x: x[0])
-        result['signal'] = [info for _, info in signal_entries]
-        
-        self.module_info = result
-        return result
+        module = self.syntax_data.tree.find({"tag": "kModuleDeclaration"})
+        if module:
+            result = self._parse_module_declaration(module)
+            self.module_info = result
+            return result
+
+        interface_decl = self.syntax_data.tree.find({"tag": "kInterfaceDeclaration"})
+        if interface_decl:
+            result = self._parse_interface_declaration(interface_decl)
+            self.module_info = result
+            return result
+
+        return {}
 
 
 def main():
