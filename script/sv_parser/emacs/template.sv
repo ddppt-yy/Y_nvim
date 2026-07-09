@@ -80,18 +80,30 @@ module_a        u_a0(
 `ifdef SPU_NUM_1
                     .spu_num            (spu_num[`INS_NUM-1:0])
 `endif
-                    /*AUTOINST*/);
+                    /*AUTOINST*/
+                     // Inputs
+                     .clk               (clk),
+                     .reset             (reset));
 
-module_b        u_b(/*AUTOINST*/);
+module_b        u_b(/*AUTOINST*/
+                    // Inputs
+                    .clk                (clk),
+                    .reset              (reset));
 
 /*module_c AUTO_TEMPLATE(.a_c_rd             (a_c_rd@.slave),
                          .a_c_rd_rtn         (a_c_rd_rtn@.master),
 
 );*/
 
-module_c #(.BUS_WIDTH(8),.BUS_DEPTH(512),.BUS_ADDR(8)) u_c0(/*AUTOINST*/);
+module_c #(.BUS_WIDTH(8),.BUS_DEPTH(512),.BUS_ADDR(8)) u_c0(/*AUTOINST*/
+                                                            // Inputs
+                                                            .clk                (clk),
+                                                            .resetn             (resetn));
 
-module_c #(.BUS_WIDTH(8),.BUS_DEPTH(512),.BUS_ADDR(8)) u_c1(/*AUTOINST*/);
+module_c #(.BUS_WIDTH(8),.BUS_DEPTH(512),.BUS_ADDR(8)) u_c1(/*AUTOINST*/
+                                                            // Inputs
+                                                            .clk                (clk),
+                                                            .resetn             (resetn));
 
 
 
