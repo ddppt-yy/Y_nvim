@@ -363,6 +363,13 @@ class SvParser:
         syntax_data: Parsed syntax data from verible-verilog-syntax.
         module_info (dict): Extracted module information.
     """
+
+    _DATA_TYPE_KEYWORDS = (
+        "wire", "tri", "supply0", "supply1", "wand", "wor", "triand",
+        "trior", "tri0", "tri1", "uwire", "reg", "logic", "bit", "byte",
+        "shortint", "int", "longint", "integer", "time", "real",
+        "realtime", "shortreal"
+    )
     
     def __init__(self, file_path: str, executable: str = "verible-verilog-syntax"):
         """Initialize the parser with a file path.
@@ -432,16 +439,19 @@ class SvParser:
         
         # Handle kExpression wrapper
         if tag == "kExpression":
-            if node.children:
+            if len(node.children) == 1:
                 return self._get_expression_text(node.children[0])
-            return ""
+            return "".join(self._get_expression_text(child)
+                           for child in node.children if child is not None)
         
         # Handle number
         if tag == "kNumber":
             return self._get_text(node)
         
-        # Default: return text
-        return self._get_text(node)
+        # Default: rebuild the expression from child tokens so constructs like
+        # concatenation/replication do not collapse to the first token.
+        return "".join(self._get_expression_text(child)
+                       for child in node.children if child is not None)
     
     def _get_expression_text_from_reference(self, node) -> str:
         """Extract text from a reference node (like AA, BB, etc.).
@@ -481,6 +491,10 @@ class SvParser:
         """
         if node is None:
             return ""
+
+        text = self._get_text(node)
+        if text:
+            return text
         
         for child in node.children:
             if child is None:
@@ -625,18 +639,24 @@ class SvParser:
         
         return result
     
-    def _get_data_type(self, port_decl) -> str:
-        """Extract data type from a port declaration.
+    def _get_data_type_from_node(self, data_type) -> str:
+        """Extract a data type string from a kDataType node.
         
         Args:
-            port_decl: A kPortDeclaration node.
+            data_type: A kDataType node.
             
         Returns:
             The data type as a string (e.g., "logic", "op", or interface name).
         """
-        data_type = port_decl.find({"tag": "kDataType"})
         if data_type is None:
             return ""
+
+        # Some old-style declarations expose net/variable type keywords as
+        # direct kDataType children instead of wrapping them in kDataTypePrimitive.
+        for child in data_type.children:
+            if (child and hasattr(child, 'tag') and
+                    child.tag in self._DATA_TYPE_KEYWORDS):
+                return child.tag
         
         # Check for primitive type (logic, bit, etc.)
         primitive = data_type.find({"tag": "kDataTypePrimitive"})
@@ -654,17 +674,31 @@ class SvParser:
         if interface_header:
             return self._get_interface_port_type(interface_header)
         
-        # Check for local root (user-defined type like "op")
-        local_root = data_type.find({"tag": "kLocalRoot"})
-        if local_root:
-            unqualified_id = local_root.find({"tag": "kUnqualifiedId"})
+        # Check direct local root children only. Nested local roots can come
+        # from packed-dimension expressions such as [WIDTH-1:0].
+        for child in data_type.children:
+            if not child or not hasattr(child, 'tag') or child.tag != "kLocalRoot":
+                continue
+            unqualified_id = child.find({"tag": "kUnqualifiedId"})
             if unqualified_id:
-                type_id = unqualified_id.find({"tag": ["SymbolIdentifier", "EscapedIdentifier"]})
+                type_id = unqualified_id.find({"tag": ["SymbolIdentifier",
+                                                       "EscapedIdentifier"]})
                 if type_id:
                     return self._get_text(type_id)
-        
+
         return ""
-    
+
+    def _get_data_type(self, port_decl) -> str:
+        """Extract data type from a port declaration.
+
+        Args:
+            port_decl: A kPortDeclaration node.
+
+        Returns:
+            The data type as a string (e.g., "logic", "op", or interface name).
+        """
+        return self._get_data_type_from_node(port_decl.find({"tag": "kDataType"}))
+
     def _get_interface_port_type(self, interface_header) -> list:
         """Extract interface port type (e.g., ['intf', 'master']).
         
@@ -755,6 +789,130 @@ class SvParser:
             unpacked_dims = self._get_unpacked_dimensions(unpacked_node)
         
         return (name, direction, data_type, packed_dims, unpacked_dims)
+
+    def _get_module_header_port_names(self, header) -> List[str]:
+        """Extract non-ANSI port names from a module header."""
+        names = []
+        if header is None:
+            return names
+
+        port_list = header.find({"tag": "kPortDeclarationList"})
+        if port_list is None:
+            return names
+
+        for port in port_list.children:
+            if not port or not hasattr(port, 'tag') or port.tag != "kPort":
+                continue
+            name = self._get_identifier_name(port)
+            if name:
+                names.append(name)
+        return names
+
+    def _get_identifier_name(self, node) -> str:
+        """Extract an identifier name from common identifier wrapper nodes."""
+        if node is None:
+            return ""
+
+        tag = node.tag if hasattr(node, 'tag') else ""
+        if tag in ("SymbolIdentifier", "EscapedIdentifier"):
+            return self._get_text(node)
+
+        unqualified_id = node.find({"tag": "kUnqualifiedId"}) \
+            if hasattr(node, 'find') else None
+        if unqualified_id:
+            name_id = unqualified_id.find({"tag": ["SymbolIdentifier",
+                                                   "EscapedIdentifier"]})
+            if name_id:
+                return self._get_text(name_id)
+
+        name_id = node.find({"tag": ["SymbolIdentifier", "EscapedIdentifier"]}) \
+            if hasattr(node, 'find') else None
+        return self._get_text(name_id) if name_id else ""
+
+    def _get_module_port_declared_type(self, module_port_decl,
+                                       direction: str) -> str:
+        """Recover old-style port type keywords omitted from kDataType."""
+        if not direction:
+            return ""
+
+        parts = module_port_decl.text.strip().split()
+        if len(parts) > 1 and parts[0] == direction and \
+                parts[1] in self._DATA_TYPE_KEYWORDS:
+            return parts[1]
+        return ""
+
+    def _parse_module_port_declaration(self, module_port_decl) -> List[tuple]:
+        """Parse old-style Verilog module port declarations.
+
+        Args:
+            module_port_decl: A kModulePortDeclaration node.
+
+        Returns:
+            A list of port tuples, one per declared identifier.
+        """
+        direction = ""
+        for child in module_port_decl.children:
+            if child and hasattr(child, 'tag') and \
+                    child.tag in ("input", "output", "inout"):
+                direction = child.tag
+                break
+
+        data_type_node = module_port_decl.find({"tag": "kDataType"})
+        data_type = self._get_data_type_from_node(data_type_node)
+        if not data_type:
+            data_type = self._get_module_port_declared_type(
+                module_port_decl, direction)
+
+        packed_dims = ""
+        if data_type_node:
+            packed_node = data_type_node.find({"tag": "kPackedDimensions"})
+            if packed_node:
+                packed_dims = self._get_packed_dimensions(packed_node)
+
+        ports = []
+        list_tags = (
+            "kIdentifierList",
+            "kIdentifierUnpackedDimensionsList",
+            "kPortIdentifierList",
+        )
+        for list_tag in list_tags:
+            id_list = module_port_decl.find({"tag": list_tag})
+            if id_list is None:
+                continue
+
+            for item in id_list.children:
+                if item is None or not hasattr(item, 'tag'):
+                    continue
+                if item.tag in (",", ";"):
+                    continue
+
+                name = self._get_identifier_name(item)
+                if not name:
+                    continue
+
+                unpacked_dims = ""
+                unpacked_node = item.find({"tag": "kUnpackedDimensions"}) \
+                    if hasattr(item, 'find') else None
+                if unpacked_node:
+                    unpacked_dims = self._get_unpacked_dimensions(unpacked_node)
+
+                ports.append((name, direction, data_type,
+                              packed_dims, unpacked_dims))
+
+        return ports
+
+    def _order_ports_by_header(self, ports: List[tuple],
+                               header_order: List[str]) -> List[tuple]:
+        """Order old-style port declarations by the module header list."""
+        if not header_order:
+            return ports
+
+        ports_by_name = {port[0]: port for port in ports}
+        ordered = [ports_by_name[name] for name in header_order
+                   if name in ports_by_name]
+        ordered_names = set(header_order)
+        ordered.extend(port for port in ports if port[0] not in ordered_names)
+        return ordered
     
     def _parse_parameter(self, param_decl) -> tuple:
         """Parse a single parameter declaration.
@@ -1065,10 +1223,12 @@ class SvParser:
         
         # Get module name
         header = module.find({"tag": "kModuleHeader"})
+        header_port_order = []
         if header:
             name_id = header.find({"tag": ["SymbolIdentifier", "EscapedIdentifier"]})
             if name_id:
                 result['name'] = self._get_text(name_id)
+            header_port_order = self._get_module_header_port_names(header)
             
             # Get parameters from header
             for param in header.iter_find_all({"tag": "kParamDeclaration"}):
@@ -1077,6 +1237,18 @@ class SvParser:
             # Get ports
             for port in header.iter_find_all({"tag": "kPortDeclaration"}):
                 result['port'].append(self._parse_port_declaration(port))
+
+        # Get old-style Verilog module port declarations from the module body.
+        # These correspond to headers like "module m (a, b);" followed by
+        # separate "input a;" / "output b;" declarations.
+        if not result['port']:
+            module_ports = []
+            for module_port_decl in module.iter_find_all(
+                    {"tag": "kModulePortDeclaration"}):
+                module_ports.extend(
+                    self._parse_module_port_declaration(module_port_decl))
+            result['port'] = self._order_ports_by_header(
+                module_ports, header_port_order)
         
         # Get imports from module body
         for import_decl in module.iter_find_all({"tag": "kPackageImportItem"}):
