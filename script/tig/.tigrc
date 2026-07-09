@@ -1,0 +1,87 @@
+# ====================== 基础全局界面配置 ======================
+set line-graphics = utf-8
+set tab-size = 4
+set horizontal-scroll = 33%
+set wrap-lines = no
+set ignore-case = smart-case
+set wrap-search = yes
+
+# 终端鼠标滚动支持
+set mouse = yes
+set mouse-scroll = 5
+
+# Diff 展示参数
+set diff-context = 6
+set diff-highlight = yes
+set word-diff = yes
+set ignore-space = some
+set diff-options = --stat-width=120
+
+# 提交日志图、日期显示
+set commit-order = default
+set id-width = 8
+set reference-format = (branch) <tag>
+
+# 自动刷新
+set refresh-mode = after-command
+set refresh-interval = 2
+
+
+# ====================== 各视图布局格式化 ======================
+# 主日志视图
+set main-view = \
+    line-number:yes \
+    id:yes,color \
+    date:relative \
+    date:default \
+    author:abbreviated,width=10 \
+    commit-title:yes,graph,refs,overflow=60
+
+# 文件树视图
+set tree-view = \
+    line-number:no,interval=5 \
+    mode author:no \
+    file-size:units \
+    date:default id:no file-name
+
+# Blame 行追溯视图
+set blame-view = \
+    line-number:yes \
+    date:default \
+    author:abbreviated \
+    id:yes,color \
+    line-number:yes,interval=5 text
+
+# Diff分页视图
+set pager-view = line-number:yes,interval=10 text
+
+# ====================== 暗色终端配色方案 ======================
+# 光标、标题栏
+color cursor white blue bold
+color title-focus white blue bold
+color title-blur white default
+
+# 提交ID、日期、作者
+color id magenta default
+color date cyan default
+color author yellow default
+
+# 分支、HEAD、标签
+color main-head cyan default bold
+color main-local-tag magenta default bold
+color main-remote yellow default
+color main-ref green default
+
+# Diff增删行高亮
+color diff-add green default standout
+color diff-del red default standout
+color diff-stat blue default
+color delimiter white default
+
+# 文件状态色
+color stat-staged green default
+color stat-unstaged yellow default
+color stat-untracked red default
+color directory yellow default
+# color line-number black default
+color overflow red default bold
