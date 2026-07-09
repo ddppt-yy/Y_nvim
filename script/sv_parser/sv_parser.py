@@ -6,12 +6,11 @@ and extracting module information including ports, parameters, and signals.
 """
 
 import sys
-import os
 import json
 import subprocess
 import collections
 import dataclasses
-from typing import Any, Callable, Dict, Iterable, List, Optional, Union
+from typing import Callable, Dict, Iterable, List, Optional, Union
 
 
 # =============================================================================
@@ -370,6 +369,8 @@ class SvParser:
         "shortint", "int", "longint", "integer", "time", "real",
         "realtime", "shortreal"
     )
+    _IDENTIFIER_TAGS = ("SymbolIdentifier", "EscapedIdentifier")
+    _PORT_DIRECTIONS = ("input", "output", "inout")
     
     def __init__(self, file_path: str, executable: str = "verible-verilog-syntax"):
         """Initialize the parser with a file path.
@@ -387,6 +388,28 @@ class SvParser:
     def _parse_file(self):
         """Parse the SystemVerilog file using verible-verilog-syntax."""
         self.syntax_data = parse_verilog_file(self.file_path, self.executable)
+
+    @staticmethod
+    def _tag(node) -> str:
+        """Return a node tag or an empty string for null/leaf placeholders."""
+        return getattr(node, 'tag', "") if node is not None else ""
+
+    def _is_tag(self, node, tags: Union[str, Iterable[str]]) -> bool:
+        """Check a node tag against one tag or a collection of tags."""
+        if isinstance(tags, str):
+            return self._tag(node) == tags
+        return self._tag(node) in tags
+
+    def _iter_children(self, node) -> Iterable[Node]:
+        """Iterate real children from a node-like object."""
+        return (child for child in getattr(node, 'children', []) if child is not None)
+
+    def _find_direct_child(self, node, tags: Union[str, Iterable[str]]):
+        """Find a direct child by tag without descending into nested syntax."""
+        for child in self._iter_children(node):
+            if self._is_tag(child, tags):
+                return child
+        return None
     
     def _get_text(self, node) -> str:
         """Get text from a node, handling None cases.
@@ -400,6 +423,15 @@ class SvParser:
         if node is None:
             return ""
         return node.text.strip()
+
+    def _get_compact_text(self, node) -> str:
+        """Concatenate descendant token text without preserving whitespace."""
+        if node is None:
+            return ""
+        if not getattr(node, 'children', None):
+            return self._get_text(node)
+        return "".join(self._get_compact_text(child)
+                       for child in self._iter_children(node))
     
     def _get_expression_text(self, node) -> str:
         """Extract expression text from an expression node.
@@ -515,20 +547,7 @@ class SvParser:
         Returns:
             The packed dimensions as a string (e.g., "[AA-1:0]").
         """
-        if node is None:
-            return ""
-        
-        result = ""
-        for child in node.children:
-            if child is None:
-                continue
-            tag = child.tag if hasattr(child, 'tag') else ""
-            if tag == "kDeclarationDimensions":
-                result += self._get_dimension_text(child)
-            elif tag == "kDimensionRange":
-                result += self._get_single_dimension_range(child)
-        
-        return result
+        return self._get_dimensions(node)
     
     def _get_dimension_text(self, node) -> str:
         """Extract dimension text from kDeclarationDimensions node.
@@ -539,18 +558,22 @@ class SvParser:
         Returns:
             The dimensions as a string.
         """
+        return self._get_dimensions(node)
+
+    def _get_dimensions(self, node) -> str:
+        """Extract compact text from a dimension wrapper node."""
         if node is None:
             return ""
-        
+
         result = ""
-        for child in node.children:
-            if child is None:
-                continue
-            tag = child.tag if hasattr(child, 'tag') else ""
+        for child in self._iter_children(node):
+            tag = self._tag(child)
             if tag == "kDimensionRange":
                 result += self._get_single_dimension_range(child)
             elif tag == "kDimensionScalar":
                 result += self._get_dimension_scalar(child)
+            elif tag == "kDeclarationDimensions":
+                result += self._get_dimensions(child)
         return result
     
     def _get_single_dimension_range(self, node) -> str:
@@ -566,10 +589,8 @@ class SvParser:
             return ""
         
         parts = []
-        for child in node.children:
-            if child is None:
-                continue
-            tag = child.tag if hasattr(child, 'tag') else ""
+        for child in self._iter_children(node):
+            tag = self._tag(child)
             if tag == "[":
                 parts.append("[")
             elif tag == "]":
@@ -596,10 +617,8 @@ class SvParser:
             return ""
         
         parts = []
-        for child in node.children:
-            if child is None:
-                continue
-            tag = child.tag if hasattr(child, 'tag') else ""
+        for child in self._iter_children(node):
+            tag = self._tag(child)
             if tag == "[":
                 parts.append("[")
             elif tag == "]":
@@ -622,22 +641,7 @@ class SvParser:
         Returns:
             The unpacked dimensions as a string.
         """
-        if node is None:
-            return ""
-        
-        result = ""
-        for child in node.children:
-            if child is None:
-                continue
-            tag = child.tag if hasattr(child, 'tag') else ""
-            if tag == "kDeclarationDimensions":
-                result += self._get_dimension_text(child)
-            elif tag == "kDimensionRange":
-                result += self._get_single_dimension_range(child)
-            elif tag == "kDimensionScalar":
-                result += self._get_dimension_scalar(child)
-        
-        return result
+        return self._get_dimensions(node)
     
     def _get_data_type_from_node(self, data_type) -> str:
         """Extract a data type string from a kDataType node.
@@ -653,21 +657,22 @@ class SvParser:
 
         # Some old-style declarations expose net/variable type keywords as
         # direct kDataType children instead of wrapping them in kDataTypePrimitive.
-        for child in data_type.children:
-            if (child and hasattr(child, 'tag') and
-                    child.tag in self._DATA_TYPE_KEYWORDS):
-                return child.tag
+        for child in self._iter_children(data_type):
+            tag = self._tag(child)
+            if tag in self._DATA_TYPE_KEYWORDS:
+                return tag
         
         # Check for primitive type (logic, bit, etc.)
         primitive = data_type.find({"tag": "kDataTypePrimitive"})
         if primitive:
-            type_token = primitive.find({"tag": ["SymbolIdentifier", "EscapedIdentifier"]})
+            type_token = primitive.find({"tag": list(self._IDENTIFIER_TAGS)})
             if type_token:
                 return self._get_text(type_token)
             # Try to find logic, bit, etc. directly
-            for child in primitive.children:
-                if child and hasattr(child, 'tag') and child.tag in ("logic", "bit", "reg", "wire"):
-                    return child.tag
+            for child in self._iter_children(primitive):
+                tag = self._tag(child)
+                if tag in self._DATA_TYPE_KEYWORDS:
+                    return tag
         
         # Check for interface port header (intf.master, intf.slave)
         interface_header = data_type.find({"tag": "kInterfacePortHeader"})
@@ -676,28 +681,16 @@ class SvParser:
         
         # Check direct local root children only. Nested local roots can come
         # from packed-dimension expressions such as [WIDTH-1:0].
-        for child in data_type.children:
-            if not child or not hasattr(child, 'tag') or child.tag != "kLocalRoot":
+        for child in self._iter_children(data_type):
+            if self._tag(child) != "kLocalRoot":
                 continue
             unqualified_id = child.find({"tag": "kUnqualifiedId"})
             if unqualified_id:
-                type_id = unqualified_id.find({"tag": ["SymbolIdentifier",
-                                                       "EscapedIdentifier"]})
+                type_id = unqualified_id.find({"tag": list(self._IDENTIFIER_TAGS)})
                 if type_id:
                     return self._get_text(type_id)
 
         return ""
-
-    def _get_data_type(self, port_decl) -> str:
-        """Extract data type from a port declaration.
-
-        Args:
-            port_decl: A kPortDeclaration node.
-
-        Returns:
-            The data type as a string (e.g., "logic", "op", or interface name).
-        """
-        return self._get_data_type_from_node(port_decl.find({"tag": "kDataType"}))
 
     def _get_interface_port_type(self, interface_header) -> list:
         """Extract interface port type (e.g., ['intf', 'master']).
@@ -711,13 +704,13 @@ class SvParser:
         result = []
         unqualified_id = interface_header.find({"tag": "kUnqualifiedId"})
         if unqualified_id:
-            for child in unqualified_id.children:
-                if child and hasattr(child, 'tag') and child.tag in ("SymbolIdentifier", "EscapedIdentifier"):
+            for child in self._iter_children(unqualified_id):
+                if self._tag(child) in self._IDENTIFIER_TAGS:
                     result.append(self._get_text(child))
         
         # Get modport if present
-        for child in interface_header.children:
-            if child and hasattr(child, 'tag') and child.tag == "SymbolIdentifier":
+        for child in self._iter_children(interface_header):
+            if self._tag(child) in self._IDENTIFIER_TAGS:
                 result.append(self._get_text(child))
         
         return result
@@ -731,9 +724,9 @@ class SvParser:
         Returns:
             The direction as a string (input, output, inout, or "" for interface).
         """
-        for child in port_decl.children:
-            if child and hasattr(child, 'tag') and child.tag in ("input", "output", "inout"):
-                return child.tag
+        for child in self._iter_children(port_decl):
+            if self._tag(child) in self._PORT_DIRECTIONS:
+                return self._tag(child)
         return ""
     
     def _get_port_name(self, port_decl) -> str:
@@ -745,12 +738,7 @@ class SvParser:
         Returns:
             The port name as a string.
         """
-        unqualified_id = port_decl.find({"tag": "kUnqualifiedId"})
-        if unqualified_id:
-            name_id = unqualified_id.find({"tag": ["SymbolIdentifier", "EscapedIdentifier"]})
-            if name_id:
-                return self._get_text(name_id)
-        return ""
+        return self._get_identifier_name(port_decl)
     
     def _parse_port_declaration(self, port_decl) -> tuple:
         """Parse a single port declaration.
@@ -774,7 +762,7 @@ class SvParser:
         
         # Regular port
         name = self._get_port_name(port_decl)
-        data_type = self._get_data_type(port_decl)
+        data_type = self._get_data_type_from_node(data_type_node)
         
         # Get packed dimensions
         packed_dims = ""
@@ -813,21 +801,33 @@ class SvParser:
         if node is None:
             return ""
 
-        tag = node.tag if hasattr(node, 'tag') else ""
-        if tag in ("SymbolIdentifier", "EscapedIdentifier"):
+        tag = self._tag(node)
+        if tag in self._IDENTIFIER_TAGS:
             return self._get_text(node)
 
         unqualified_id = node.find({"tag": "kUnqualifiedId"}) \
             if hasattr(node, 'find') else None
         if unqualified_id:
-            name_id = unqualified_id.find({"tag": ["SymbolIdentifier",
-                                                   "EscapedIdentifier"]})
+            name_id = unqualified_id.find({"tag": list(self._IDENTIFIER_TAGS)})
             if name_id:
                 return self._get_text(name_id)
 
-        name_id = node.find({"tag": ["SymbolIdentifier", "EscapedIdentifier"]}) \
+        name_id = node.find({"tag": list(self._IDENTIFIER_TAGS)}) \
             if hasattr(node, 'find') else None
         return self._get_text(name_id) if name_id else ""
+
+    def _get_direct_identifier_name(self, node) -> str:
+        """Extract a declared name from direct identifier children only."""
+        if node is None:
+            return ""
+
+        for child in self._iter_children(node):
+            tag = self._tag(child)
+            if tag in self._IDENTIFIER_TAGS:
+                return self._get_text(child)
+            if tag == "kUnqualifiedId":
+                return self._get_identifier_name(child)
+        return ""
 
     def _get_module_port_declared_type(self, module_port_decl,
                                        direction: str) -> str:
@@ -851,10 +851,9 @@ class SvParser:
             A list of port tuples, one per declared identifier.
         """
         direction = ""
-        for child in module_port_decl.children:
-            if child and hasattr(child, 'tag') and \
-                    child.tag in ("input", "output", "inout"):
-                direction = child.tag
+        for child in self._iter_children(module_port_decl):
+            if self._tag(child) in self._PORT_DIRECTIONS:
+                direction = self._tag(child)
                 break
 
         data_type_node = module_port_decl.find({"tag": "kDataType"})
@@ -880,10 +879,8 @@ class SvParser:
             if id_list is None:
                 continue
 
-            for item in id_list.children:
-                if item is None or not hasattr(item, 'tag'):
-                    continue
-                if item.tag in (",", ";"):
+            for item in self._iter_children(id_list):
+                if self._tag(item) in (",", ";"):
                     continue
 
                 name = self._get_identifier_name(item)
@@ -913,6 +910,61 @@ class SvParser:
         ordered_names = set(header_order)
         ordered.extend(port for port in ports if port[0] not in ordered_names)
         return ordered
+
+    def _get_type_info_data_type(self, type_info, default: str = "") -> str:
+        """Extract primitive or user-defined type text from kTypeInfo."""
+        if type_info is None:
+            return default
+
+        for child in self._iter_children(type_info):
+            tag = self._tag(child)
+            if tag in self._DATA_TYPE_KEYWORDS:
+                return tag
+
+        unqualified_id = type_info.find({"tag": "kUnqualifiedId"})
+        if unqualified_id:
+            type_id = unqualified_id.find({"tag": list(self._IDENTIFIER_TAGS)})
+            if type_id:
+                return self._get_text(type_id)
+
+        return default
+
+    def _get_trailing_assign_value(self, decl) -> str:
+        """Extract the expression value from a trailing assignment."""
+        trailing_assign = decl.find({"tag": "kTrailingAssign"})
+        if trailing_assign is None:
+            return ""
+
+        expr = trailing_assign.find({"tag": "kExpression"})
+        return self._get_expression_text(expr) if expr else ""
+
+    def _parse_param_declaration(self, param_decl, default_data_type: str) -> tuple:
+        """Parse parameter/localparam declarations with a shared shape."""
+        param_type = param_decl.find({"tag": "kParamType"})
+
+        data_type = default_data_type
+        packed_dim = ""
+        name = ""
+
+        if param_type:
+            data_type = self._get_type_info_data_type(
+                param_type.find({"tag": "kTypeInfo"}),
+                default_data_type,
+            )
+
+            packed_node = param_type.find({"tag": "kPackedDimensions"})
+            if packed_node:
+                packed_dim = self._get_packed_dimensions(packed_node)
+
+            name = self._get_direct_identifier_name(param_type)
+
+        return (name, self._get_trailing_assign_value(param_decl),
+                data_type, packed_dim)
+
+    @staticmethod
+    def _none_if_empty(value: str) -> str:
+        """Normalize empty signal dimensions to the historical string value."""
+        return value if value else "None"
     
     def _parse_parameter(self, param_decl) -> tuple:
         """Parse a single parameter declaration.
@@ -923,46 +975,7 @@ class SvParser:
         Returns:
             A tuple representing the parameter information (name, value, type, packed_dim).
         """
-        param_type = param_decl.find({"tag": "kParamType"})
-        
-        data_type = "None"
-        packed_dim = ""
-        name = ""
-        value = ""
-        
-        if param_type:
-            # Get type info
-            type_info = param_type.find({"tag": "kTypeInfo"})
-            if type_info:
-                for child in type_info.children:
-                    if child and hasattr(child, 'tag') and child.tag in ("logic", "bit", "reg", "wire"):
-                        data_type = child.tag
-                        break
-                # Check for user-defined type in kUnqualifiedId
-                unqual_id = type_info.find({"tag": "kUnqualifiedId"})
-                if unqual_id:
-                    type_id = unqual_id.find({"tag": ["SymbolIdentifier", "EscapedIdentifier"]})
-                    if type_id:
-                        data_type = self._get_text(type_id)
-            
-            # Get packed dimensions
-            packed_node = param_type.find({"tag": "kPackedDimensions"})
-            if packed_node:
-                packed_dim = self._get_packed_dimensions(packed_node)
-            
-            # Get parameter name
-            name_id = param_type.find({"tag": ["SymbolIdentifier", "EscapedIdentifier"]})
-            if name_id:
-                name = self._get_text(name_id)
-        
-        # Get default value
-        trailing_assign = param_decl.find({"tag": "kTrailingAssign"})
-        if trailing_assign:
-            expr = trailing_assign.find({"tag": "kExpression"})
-            if expr:
-                value = self._get_expression_text(expr)
-        
-        return (name, value, data_type, packed_dim)
+        return self._parse_param_declaration(param_decl, "None")
     
     def _parse_localparam(self, param_decl) -> tuple:
         """Parse a single localparam declaration.
@@ -973,46 +986,7 @@ class SvParser:
         Returns:
             A tuple representing the localparam information (name, value, type, packed_dim).
         """
-        param_type = param_decl.find({"tag": "kParamType"})
-        
-        data_type = ""
-        packed_dim = ""
-        name = ""
-        value = ""
-        
-        if param_type:
-            # Get type info
-            type_info = param_type.find({"tag": "kTypeInfo"})
-            if type_info:
-                for child in type_info.children:
-                    if child and hasattr(child, 'tag') and child.tag in ("logic", "bit", "reg", "wire"):
-                        data_type = child.tag
-                        break
-                # Check for user-defined type in kUnqualifiedId
-                unqual_id = type_info.find({"tag": "kUnqualifiedId"})
-                if unqual_id:
-                    type_id = unqual_id.find({"tag": ["SymbolIdentifier", "EscapedIdentifier"]})
-                    if type_id:
-                        data_type = self._get_text(type_id)
-            
-            # Get packed dimensions
-            packed_node = param_type.find({"tag": "kPackedDimensions"})
-            if packed_node:
-                packed_dim = self._get_packed_dimensions(packed_node)
-            
-            # Get parameter name
-            name_id = param_type.find({"tag": ["SymbolIdentifier", "EscapedIdentifier"]})
-            if name_id:
-                name = self._get_text(name_id)
-        
-        # Get default value
-        trailing_assign = param_decl.find({"tag": "kTrailingAssign"})
-        if trailing_assign:
-            expr = trailing_assign.find({"tag": "kExpression"})
-            if expr:
-                value = self._get_expression_text(expr)
-        
-        return (name, value, data_type, packed_dim)
+        return self._parse_param_declaration(param_decl, "")
     
     def _parse_data_declaration(self, data_decl) -> tuple:
         """Parse a data declaration (logic, wire, user-defined types, interfaces).
@@ -1035,30 +1009,11 @@ class SvParser:
             if inst_type:
                 dt_node = inst_type.find({"tag": "kDataType"})
                 if dt_node:
-                    # Check for primitive (only in direct children)
-                    for child in dt_node.children:
-                        if child and hasattr(child, 'tag') and child.tag == "kDataTypePrimitive":
-                            for subchild in child.children:
-                                if subchild and hasattr(subchild, 'tag') and subchild.tag in ("logic", "bit", "reg", "wire"):
-                                    data_type = subchild.tag
-                                    break
-                            break
-                    
-                    # Check for user-defined type (only in direct children)
-                    for child in dt_node.children:
-                        if child and hasattr(child, 'tag') and child.tag == "kLocalRoot":
-                            unqual_id = child.find({"tag": "kUnqualifiedId"})
-                            if unqual_id:
-                                type_id = unqual_id.find({"tag": ["SymbolIdentifier", "EscapedIdentifier"]})
-                                if type_id:
-                                    data_type = self._get_text(type_id)
-                            break
-                    
-                    # Get packed dimensions (only in direct children)
-                    for child in dt_node.children:
-                        if child and hasattr(child, 'tag') and child.tag == "kPackedDimensions":
-                            packed_dim = self._get_packed_dimensions(child)
-                            break
+                    data_type = self._get_data_type_from_node(dt_node)
+                    packed_node = self._find_direct_child(dt_node,
+                                                          "kPackedDimensions")
+                    if packed_node:
+                        packed_dim = self._get_packed_dimensions(packed_node)
             
             # Get signal name from kGateInstanceRegisterVariableList
             reg_var_list = inst_base.find({"tag": "kGateInstanceRegisterVariableList"})
@@ -1066,9 +1021,7 @@ class SvParser:
                 # Check for kRegisterVariable (for logic signals)
                 reg_var = reg_var_list.find({"tag": "kRegisterVariable"})
                 if reg_var:
-                    name_id = reg_var.find({"tag": ["SymbolIdentifier", "EscapedIdentifier"]})
-                    if name_id:
-                        name = self._get_text(name_id)
+                    name = self._get_direct_identifier_name(reg_var)
                     # Get unpacked dimensions
                     unpacked_node = reg_var.find({"tag": "kUnpackedDimensions"})
                     if unpacked_node:
@@ -1083,28 +1036,22 @@ class SvParser:
                             # This is a module instantiation, skip it
                             return ("", "", "", "")
                         
-                        inst_name = gate_inst.find({"tag": ["SymbolIdentifier", "EscapedIdentifier"]})
-                        if inst_name:
-                            name = self._get_text(inst_name)
+                        name = self._get_direct_identifier_name(gate_inst)
                         # Check for parentheses (interface instance)
                         has_paren = False
-                        for gchild in gate_inst.children:
-                            if gchild and hasattr(gchild, 'tag') and gchild.tag == "(":
+                        for gchild in self._iter_children(gate_inst):
+                            tag = self._tag(gchild)
+                            if tag == "(":
                                 has_paren = True
                                 name += "("
-                            elif gchild and hasattr(gchild, 'tag') and gchild.tag == ")":
+                            elif tag == ")":
                                 name += ")"
                         # If no parentheses but it's an interface, add ()
                         if not has_paren and data_type and data_type.endswith("_if"):
                             name += "()"
         
-        # Handle "None" values
-        if not packed_dim:
-            packed_dim = "None"
-        if not unpacked_dim:
-            unpacked_dim = "None"
-        
-        return (name, data_type, packed_dim, unpacked_dim)
+        return (name, data_type, self._none_if_empty(packed_dim),
+                self._none_if_empty(unpacked_dim))
     
     def _parse_net_declaration(self, net_decl) -> tuple:
         """Parse a net declaration (wire declarations).
@@ -1120,14 +1067,8 @@ class SvParser:
         unpacked_dim = ""
         name = ""
         
-        # Get data type (wire) from kDataType child
         dt_node = net_decl.find({"tag": "kDataType"})
-        if dt_node:
-            # Check for primitive type (wire, tri, etc.)
-            for child in dt_node.children:
-                if child and hasattr(child, 'tag') and child.tag in ("wire", "tri", "supply0", "supply1", "wand", "wor", "triand", "trior", "tri0", "tri1"):
-                    data_type = child.tag
-                    break
+        data_type = self._get_data_type_from_node(dt_node)
         
         # Get packed dimensions from kDataTypeImplicitIdDimensions
         implicit_dims = net_decl.find({"tag": "kDataTypeImplicitIdDimensions"})
@@ -1141,20 +1082,13 @@ class SvParser:
         if net_var_assign:
             net_var = net_var_assign.find({"tag": "kNetVariable"})
             if net_var:
-                name_id = net_var.find({"tag": ["SymbolIdentifier", "EscapedIdentifier"]})
-                if name_id:
-                    name = self._get_text(name_id)
+                name = self._get_direct_identifier_name(net_var)
                 unpacked_node = net_var.find({"tag": "kUnpackedDimensions"})
                 if unpacked_node:
                     unpacked_dim = self._get_unpacked_dimensions(unpacked_node)
-        
-        # Handle "None" values
-        if not packed_dim:
-            packed_dim = "None"
-        if not unpacked_dim:
-            unpacked_dim = "None"
-        
-        return (name, data_type, packed_dim, unpacked_dim)
+
+        return (name, data_type, self._none_if_empty(packed_dim),
+                self._none_if_empty(unpacked_dim))
     
     def _parse_import(self, import_decl) -> str:
         """Parse a single import declaration.
@@ -1165,32 +1099,34 @@ class SvParser:
         Returns:
             A string representing the import (e.g., "pkg_mthc_::*").
         """
-        result = ""
-        for child in import_decl.children:
-            if child is None:
-                continue
-            tag = child.tag if hasattr(child, 'tag') else ""
-            if tag == "kScopePrefix":
-                # Get package name from kScopePrefix
-                for subchild in child.children:
-                    if subchild is None:
-                        continue
-                    subtag = subchild.tag if hasattr(subchild, 'tag') else ""
-                    if subtag in ("SymbolIdentifier", "EscapedIdentifier"):
-                        result += self._get_text(subchild)
-                    elif subtag == "::":
-                        result += "::"
-            elif tag == "::":
-                result += "::"
-            elif tag == "*":
-                result += "*"
-            elif tag == "kUnqualifiedId":
-                # Get package name from kUnqualifiedId (for specific imports)
-                for subchild in child.children:
-                    if subchild and hasattr(subchild, 'tag') and subchild.tag in ("SymbolIdentifier", "EscapedIdentifier"):
-                        result += self._get_text(subchild)
-        
-        return result
+        return self._get_compact_text(import_decl)
+
+    def _new_module_info(self) -> dict:
+        """Create the public module-info shape expected by callers."""
+        return {
+            'name': '',
+            # Kept for backwards compatibility. Package imports are reported
+            # through 'import'; this parser does not collect package definitions.
+            'package': [],
+            'para': [],
+            'lpara': [],
+            'port': [],
+            'signal': [],
+            'import': []
+        }
+
+    def _is_header_parameter(self, param_decl) -> bool:
+        """Return True for parameter declarations from an ANSI header."""
+        return self._tag(getattr(param_decl, 'parent', None)) == "kFormalParameterList"
+
+    def _is_localparam(self, param_decl) -> bool:
+        """Return True when a kParamDeclaration starts with localparam."""
+        return any(self._tag(child) == "localparam"
+                   for child in self._iter_children(param_decl))
+
+    def _is_module_header_child(self, node) -> bool:
+        """Return True for declarations already handled from kModuleHeader."""
+        return self._tag(getattr(node, 'parent', None)) == "kModuleHeader"
     
     def get_sv_port(self) -> dict:
         """Get module information including ports, parameters, and signals.
@@ -1211,15 +1147,7 @@ class SvParser:
         if module is None:
             return {}
         
-        result = {
-            'name': '',
-            'package': [],
-            'para': [],
-            'lpara': [],
-            'port': [],
-            'signal': [],
-            'import': []
-        }
+        result = self._new_module_info()
         
         # Get module name
         header = module.find({"tag": "kModuleHeader"})
@@ -1261,18 +1189,11 @@ class SvParser:
         # We need to check the first child to determine which one
         for param_decl in module.iter_find_all({"tag": "kParamDeclaration"}):
             # Skip if already in header (parent is kFormalParameterList)
-            parent = param_decl.parent
-            if parent and hasattr(parent, 'tag') and parent.tag == "kFormalParameterList":
+            if self._is_header_parameter(param_decl):
                 continue
             
             # Check if it's localparam or parameter
-            is_localparam = False
-            for child in param_decl.children:
-                if child and hasattr(child, 'tag') and child.tag == "localparam":
-                    is_localparam = True
-                    break
-            
-            if is_localparam:
+            if self._is_localparam(param_decl):
                 result['lpara'].append(self._parse_localparam(param_decl))
             else:
                 result['para'].append(self._parse_parameter(param_decl))
@@ -1283,8 +1204,7 @@ class SvParser:
         # Get data declarations (signals)
         for data_decl in module.iter_find_all({"tag": "kDataDeclaration"}):
             # Skip if parent is kModuleHeader (it's a port declaration)
-            parent = data_decl.parent
-            if parent and hasattr(parent, 'tag') and parent.tag == "kModuleHeader":
+            if self._is_module_header_child(data_decl):
                 continue
             signal_info = self._parse_data_declaration(data_decl)
             # Skip empty signals (module instantiations)
