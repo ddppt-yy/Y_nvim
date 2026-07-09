@@ -1,16 +1,18 @@
 interface two_direct_if;
   import pkg_mthc_::*;
   logic [7:0] data;
+  xxxx oooo;
   logic valid;
   logic ready;
 
   modport master (
-    output data, valid,
+    output data, valid, oooo,
     input ready,
     import send_data // 导入任务
   );
   modport slave (
     input data, valid,
+    input oooo,
     output ready
   );
 

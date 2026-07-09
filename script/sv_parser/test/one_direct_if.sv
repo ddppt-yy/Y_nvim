@@ -6,11 +6,11 @@ interface one_direct_if #(
   logic valid;
   logic ready;
 
-  modport master (
+  modport aaa (
     output data, valid,
     input ready
   );
-  modport slave (
+  modport bbb (
     input data, valid,
     output ready
   );
