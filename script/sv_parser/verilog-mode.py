@@ -696,6 +696,18 @@ def module_info_from_block(name: str, block: str,
         )
     ]
     ports = parse_declarations(block, directions={"input", "output", "inout"})
+    # Backfill ports from ANSI-style module header (e.g. module Sub(input i, output o);)
+    header_match = re.match(
+        r"\b(?:module|interface)\s+\w+\s*\(\s*(.*?)\s*\)\s*;",
+        block, re.DOTALL,
+    )
+    if header_match:
+        header_text = header_match.group(1)
+        if header_text.strip():
+            existing = {p.name for p in ports}
+            for hp in parse_ansi_port_list(header_text):
+                if hp.name not in existing:
+                    ports.append(hp)
     signals = parse_signal_declarations(block)
     modports: dict[str, list[tuple[str, str]]] = {}
     interface_ports = {port.name: port for port in signals}
@@ -780,8 +792,17 @@ class ModuleLibrary:
                 info = module_from_parser_info(SvParser(str(path)).get_sv_port())
             except Exception:
                 info = None
-        if info is None:
-            info = simple_parse_module_file(path)
+        if info is None or (not info.ports and not info.params):
+            # SvParser returned empty data (likely syntax errors in the file),
+            # fall back to regex-based simple parse.
+            fallback = simple_parse_module_file(path)
+            if fallback is not None:
+                # Preserve the SvParser name if present, fallback name otherwise
+                if info is not None and info.name:
+                    name = info.name
+                else:
+                    name = fallback.name
+                info = dataclasses.replace(fallback, name=name)
         if info is not None:
             info.source_path = path
         return info
@@ -1243,6 +1264,29 @@ def parse_declaration_statement(stmt: str) -> list[Port]:
         unpacked = name_match.group(2) if name_match.group(2).startswith("[") else ""
         ports.append(Port(name, direction, data_type, packed, unpacked))
     return ports
+
+
+def parse_ansi_port_list(header_text: str) -> list[Port]:
+    """Parse ANSI-style port list like 'input i, output o, inout [3:0] io'."""
+    result: list[Port] = []
+    # Split by direction keywords
+    pattern = re.compile(
+        r"\b(input|output|inout)\b\s*",
+    )
+    parts = re.split(r"(\b(?:input|output|inout)\b)", header_text)
+    # parts alternates: [before, kw, after, kw, after, ...]
+    i = 0
+    while i < len(parts):
+        part = parts[i].strip()
+        if part in {"input", "output", "inout"}:
+            direction = part
+            body = parts[i + 1].rstrip(",").strip() if i + 1 < len(parts) else ""
+            for port in parse_declaration_statement(direction + " " + body + ";"):
+                result.append(port)
+            i += 2
+        else:
+            i += 1
+    return result
 
 
 def parse_declarations(text: str, directions: set[str] | None = None) -> list[Port]:
