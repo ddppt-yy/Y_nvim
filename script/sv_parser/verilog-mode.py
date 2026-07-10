@@ -826,6 +826,29 @@ def declaration_data_type(port: Port, direction: str | None = None) -> str:
     return data_type
 
 
+def is_in_port_list(text: str, pos: int) -> bool:
+    """Check if position is inside the module port list."""
+    module_match = None
+    for match in re.finditer(r"\bmodule\b", text[:pos]):
+        module_match = match
+    if not module_match:
+        return False
+
+    open_paren = text.find("(", module_match.end())
+    if open_paren < 0 or open_paren >= pos:
+        return False
+
+    depth = 0
+    for i in range(open_paren, len(text)):
+        if text[i] == "(":
+            depth += 1
+        elif text[i] == ")":
+            depth -= 1
+            if depth == 0:
+                return open_paren < pos < i
+    return False
+
+
 def format_declaration(
     port: Port,
     direction: str | None = None,
@@ -833,6 +856,7 @@ def format_declaration(
     indent: str = "    ",
     comment: str | None = None,
     force_data_type: str | None = None,
+    in_port_list: bool = False,
 ) -> str:
     direction = port.direction if direction is None else direction
     data_type = declaration_data_type(port, direction)
@@ -843,7 +867,7 @@ def format_declaration(
     if port.unpacked:
         target += port.unpacked
     spaces = " " * max(1, DECL_NAME_COLUMN - len(prefix))
-    line = f"{prefix}{spaces}{target};"
+    line = f"{prefix}{spaces}{target}" + ("" if in_port_list else ";")
     if comment:
         line += f" {comment}"
     return line
@@ -1388,9 +1412,11 @@ def expand_auto_declaration_kind(
             uses_for_signal = by_signal[signal]
             use = declaration_use_for_signal(uses_for_signal, (direction,))
             comment = use_comment(lib, direction, uses_for_signal)
+            in_port = is_in_port_list(text, marker.start)
             lines.append(format_declaration(declaration_port_for_use(use),
                                             direction, signal,
-                                            marker.indent, comment))
+                                            marker.indent, comment,
+                                            in_port_list=in_port))
         return automatic_block(marker.indent, begin, lines)
 
     return expand_marker_lines(text, wanted, generator)
@@ -1441,6 +1467,7 @@ def module_marker_target(marker: AutoMarker) -> str | None:
 def ports_for_direction_groups(module: ModuleInfo, mode: str) -> list[Port]:
     ports: list[Port] = []
     for direction in DIRECTION_ORDER:
+        group: list[Port] = []
         for port in module.ports:
             if port.direction not in DIRECTION_ORDER:
                 continue
@@ -1454,7 +1481,9 @@ def ports_for_direction_groups(module: ModuleInfo, mode: str) -> list[Port]:
             elif mode == "in":
                 out_direction = "input"
             if out_direction == direction:
-                ports.append(dataclasses.replace(port, direction=out_direction))
+                group.append(dataclasses.replace(port, direction=out_direction))
+        group.sort(key=lambda p: p.name.lower())
+        ports.extend(group)
     return ports
 
 
@@ -1481,7 +1510,7 @@ def expand_autoinoutmodule_kind(
     begin = {
         "module": "in/out/inouts (from specific module)",
         "comp": "in/out/inouts (from specific module, complemented)",
-        "in": "inputs (from specific module)",
+        "in": "in/out/inouts (from specific module)",
     }[mode]
 
     def generator(marker: AutoMarker) -> str:
@@ -1489,8 +1518,10 @@ def expand_autoinoutmodule_kind(
         module = lib.get(target or "") if target else None
         if not module:
             return ""
+        in_port = is_in_port_list(text, marker.start)
         lines = [
-            format_declaration(port, port.direction, port.name, marker.indent)
+            format_declaration(port, port.direction, port.name, marker.indent,
+                               in_port_list=in_port)
             for port in ports_for_direction_groups(module, mode)
         ]
         return automatic_block(marker.indent, begin, lines)
@@ -1516,8 +1547,10 @@ def expand_autoinoutmodport(text: str, lib: ModuleLibrary) -> str:
                 continue
             top_name = f"{prefix}{signal}{suffix}"
             decl_port = dataclasses.replace(port, direction=direction)
+            in_port = is_in_port_list(text, marker.start)
             lines.append(format_declaration(decl_port, direction, top_name,
-                                            marker.indent))
+                                            marker.indent,
+                                            in_port_list=in_port))
         return automatic_block(marker.indent, "in/out/inouts (from modport)",
                                lines)
 
@@ -1679,7 +1712,7 @@ def expand_autoarg(text: str) -> str:
         scope = module_scope_text(text, marker.start)
         grouped = collect_autoarg_grouped(scope)
         sort_args = local_auto_arg_sort(text)
-        reverse_args = "Beginning of automatic" in scope
+        reverse_args = "Beginning of automatic" in text[marker.end:close]
         output_names = (sorted(grouped["output"]) if sort_args
                         else (list(reversed(grouped["output"]))
                               if reverse_args else grouped["output"]))
