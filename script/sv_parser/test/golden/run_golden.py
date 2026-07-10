@@ -86,6 +86,16 @@ def run_case(case_dir: pathlib.Path) -> bool:
         if not assert_text_equal(case_name, "delete", actual_delete, expected_delete):
             return False
 
+        proc = run_cmd("verilog-batch-auto", top_file)
+        if proc.returncode != 0:
+            print(proc.stdout, file=sys.stderr)
+            print(proc.stderr, file=sys.stderr)
+            print(f"{case_name}: second verilog-batch-auto failed", file=sys.stderr)
+            return False
+        actual_reauto = read_text(top_file)
+        if not assert_text_equal(case_name, "reauto", actual_reauto, expected_auto):
+            return False
+
     print(f"PASS {case_name}")
     return True
 
@@ -119,4 +129,3 @@ def main(argv: list[str] | None = None) -> int:
 
 if __name__ == "__main__":
     raise SystemExit(main())
-
