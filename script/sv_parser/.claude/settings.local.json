@@ -1,0 +1,18 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(python3 *)",
+      "Bash(head -n 196 /home/yh/my_script/Y_nvim/script/sv_parser/testplan.csv)",
+      "Bash(mv /tmp/testplan_clean.csv /home/yh/my_script/Y_nvim/script/sv_parser/testplan.csv)",
+      "Bash(git stash *)",
+      "Bash(git checkout *)",
+      "Bash(verible-verilog-syntax --help)",
+      "Bash(verible-verilog-syntax --printtree /home/yh/my_script/Y_nvim/script/sv_parser/test/verilog-mode/tests/ExampInstParam.v)",
+      "Bash(verible-verilog-syntax --printtree /home/yh/my_script/Y_nvim/script/sv_parser/test/verilog-mode/tests/autoinoutmodule.v)",
+      "Bash(verible-verilog-syntax --printtree /home/yh/my_script/Y_nvim/script/sv_parser/test/verilog-mode/tests/ExampReg.v)",
+      "Bash(verible-verilog-syntax --printtree /home/yh/my_script/Y_nvim/script/sv_parser/test/verilog-mode/tests/autoinoutmodule_iface.v)",
+      "Bash(verible-verilog-syntax *)",
+      "Bash(verilator --version)"
+    ]
+  }
+}
