@@ -2,7 +2,14 @@
 `define LOCAL_B(x)
 
 module shell (
-    /*AUTOARG*/dout, pad, clk, din);
+    /*AUTOARG*/
+   // Outputs
+   dout,
+   // Inouts
+   pad,
+   // Inputs
+   din, clk
+   );
     /*AUTOINOUTPARAM("ref_mod")*/
     // Beginning of automatic parameters (from specific module)
     parameter                   WIDTH;

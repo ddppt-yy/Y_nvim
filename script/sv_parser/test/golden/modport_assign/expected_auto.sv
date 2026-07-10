@@ -1,5 +1,10 @@
 module mp_wrap (
-    /*AUTOARG*/m_req_dat, m_req_val, m_rsp_rdy);
+    /*AUTOARG*/
+   // Outputs
+   m_req_val, m_req_dat,
+   // Inputs
+   m_rsp_rdy
+   );
     bus_if vif();
     /*AUTOINOUTMODPORT("bus_if", "drv", "", "m_")*/
     // Beginning of automatic in/out/inouts (from modport)

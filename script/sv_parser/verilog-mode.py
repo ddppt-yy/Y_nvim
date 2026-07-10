@@ -63,6 +63,30 @@ class ModuleInfo:
     signals: list[Port]
     interface_ports: dict[str, Port]
     modports: dict[str, list[tuple[str, str]]]
+    source_path: pathlib.Path | None = None
+
+
+@dataclasses.dataclass(frozen=True)
+class TemplateEntry:
+    port_pattern: str
+    expr: str
+    regex: re.Pattern[str] | None
+
+
+@dataclasses.dataclass(frozen=True)
+class AutoTemplate:
+    module: str
+    start: int
+    instance_regex: re.Pattern[str] | None
+    entries: tuple[TemplateEntry, ...]
+
+
+@dataclasses.dataclass(frozen=True)
+class TemplateResult:
+    expr: str
+    signal: str
+    templated: bool = False
+    decl_port: Port | None = None
 
 
 @dataclasses.dataclass(frozen=True)
@@ -74,6 +98,7 @@ class Instance:
     port_close: int
     param_open: int | None = None
     param_close: int | None = None
+    auto_vars: tuple[tuple[str, str], ...] = ()
 
 
 @dataclasses.dataclass(frozen=True)
@@ -81,6 +106,9 @@ class ConnectionUse:
     instance: Instance
     port: Port
     signal: str
+    templated: bool = False
+    expr: str = ""
+    decl_port: Port | None = None
 
 
 @dataclasses.dataclass(frozen=True)
@@ -163,6 +191,222 @@ def module_from_parser_info(info: dict) -> ModuleInfo | None:
             for name, ports in interface.get("modport", {}).items()
         },
     )
+
+
+def emacs_regex_to_python(pattern: str) -> str:
+    """Translate the common AUTO_TEMPLATE Emacs-regexp subset to Python."""
+    result = pattern
+    result = result.replace(r"\(", "(").replace(r"\)", ")")
+    result = result.replace(r"\{", "{").replace(r"\}", "}")
+    return result
+
+
+def compile_template_regex(pattern: str) -> re.Pattern[str] | None:
+    if not any(token in pattern for token in (r"\(", ".*", "[", "^", "$", "@")):
+        return None
+    try:
+        return re.compile("^" + emacs_regex_to_python(pattern) + "$")
+    except re.error:
+        return None
+
+
+def find_unescaped_char(text: str, target: str) -> int:
+    escaped = False
+    for index, ch in enumerate(text):
+        if escaped:
+            escaped = False
+            continue
+        if ch == "\\":
+            escaped = True
+            continue
+        if ch == target:
+            return index
+    return -1
+
+
+def parse_template_entry(item: str) -> tuple[str, str] | None:
+    item = item.strip()
+    if not item.startswith("."):
+        return None
+    body = item[1:].strip()
+    open_pos = find_unescaped_char(body, "(")
+    if open_pos < 0:
+        return None
+    close_pos = body.rfind(")")
+    if close_pos <= open_pos:
+        return None
+    port_pattern = body[:open_pos].strip()
+    expr = " ".join(body[open_pos + 1:close_pos].strip().split())
+    if not port_pattern:
+        return None
+    return port_pattern, expr
+
+
+def parse_auto_templates(text: str) -> list[AutoTemplate]:
+    templates: list[AutoTemplate] = []
+    pattern = re.compile(
+        r"/\*\s*([A-Za-z_][A-Za-z0-9_$]*)\s+AUTO_TEMPLATE"
+        r"(?:\s+\"([^\"]*)\")?\s*\((.*?)\)\s*;\s*\*/",
+        re.DOTALL,
+    )
+    for match in pattern.finditer(text):
+        module = match.group(1)
+        instance_pattern = match.group(2)
+        instance_regex = None
+        if instance_pattern:
+            try:
+                instance_regex = re.compile(emacs_regex_to_python(instance_pattern))
+            except re.error:
+                instance_regex = None
+        entries: list[TemplateEntry] = []
+        for item in split_top_level_commas(match.group(3)):
+            parsed_entry = parse_template_entry(item)
+            if not parsed_entry:
+                continue
+            port_pattern, expr = parsed_entry
+            entries.append(
+                TemplateEntry(
+                    port_pattern=port_pattern,
+                    expr=expr,
+                    regex=compile_template_regex(port_pattern),
+                )
+            )
+        templates.append(
+            AutoTemplate(module, match.start(), instance_regex, tuple(entries))
+        )
+    return templates
+
+
+def instance_number(instance_name: str) -> str:
+    match = re.search(r"(\d+)(?!.*\d)", instance_name)
+    return match.group(1) if match else ""
+
+
+def width_expr_from_port(port: Port) -> str:
+    dim = port.packed or port.unpacked
+    if not dim.startswith("[") or not dim.endswith("]"):
+        return "1"
+    body = dim[1:-1].strip()
+    if ":" not in body:
+        return body or "1"
+    left, right = [part.strip() for part in body.split(":", 1)]
+    if right == "0":
+        minus_one = re.fullmatch(r"(.+)-1", left)
+        if minus_one:
+            return minus_one.group(1).strip()
+        if left.isdigit():
+            return str(int(left) + 1)
+    if left.isdigit() and right.isdigit():
+        return str(abs(int(left) - int(right)) + 1)
+    return f"({left})-({right})+1"
+
+
+def substitute_backrefs(expr: str, groups: tuple[str, ...]) -> str:
+    def repl(match: re.Match[str]) -> str:
+        digits = match.group(1)
+        for end in range(len(digits), 0, -1):
+            index = int(digits[:end])
+            if 1 <= index <= len(groups):
+                return groups[index - 1] + digits[end:]
+        return match.group(0)
+
+    return re.sub(r"\\([0-9]+)", repl, expr)
+
+
+def substitute_template_expr(
+    expr: str,
+    port: Port,
+    groups: tuple[str, ...],
+    inst: Instance,
+    at_value: str,
+) -> str:
+    result = expr
+    for name, value in inst.auto_vars:
+        result = result.replace(f'@"{name}"', value)
+    result = result.replace('@"vl-cell-name"', inst.name)
+    result = result.replace('@"vl-width"', width_expr_from_port(port))
+    result = result.replace('@"(downcase vl-name)"', port.name.lower())
+    result = substitute_backrefs(result, groups)
+    result = result.replace("@", at_value)
+
+    dims = f"{port.packed}{port.unpacked}"
+    result = result.replace("[]", dims)
+    return result
+
+
+def base_signal_from_expr(expr: str) -> str:
+    match = re.fullmatch(
+        r"\s*([A-Za-z_][A-Za-z0-9_$]*)(?:\s*\[[^\]]+\])*\s*",
+        expr,
+    )
+    return match.group(1) if match else ""
+
+
+def decl_port_from_template_expr(port: Port, expr: str, templated: bool) -> Port:
+    if not templated or "[" in expr:
+        return port
+    return dataclasses.replace(port, packed="", unpacked="")
+
+
+def template_instance_at_value(
+    template: AutoTemplate,
+    inst: Instance,
+) -> tuple[bool, str]:
+    if template.instance_regex is None:
+        return True, instance_number(inst.name)
+    match = template.instance_regex.search(inst.name)
+    if not match:
+        return False, ""
+    if match.groups():
+        return True, match.group(1)
+    return True, match.group(0)
+
+
+def template_port_match(
+    entry: TemplateEntry,
+    port: Port,
+) -> tuple[bool, tuple[str, ...]]:
+    if entry.regex is None and "@" not in entry.port_pattern:
+        return entry.port_pattern == port.name, ()
+
+    pattern = emacs_regex_to_python(entry.port_pattern)
+    pattern = pattern.replace("@", r"([0-9]+)")
+    try:
+        regex = re.compile("^" + pattern + "$")
+    except re.error:
+        return False, ()
+    match = regex.match(port.name)
+    if not match:
+        return False, ()
+    return True, match.groups()
+
+
+def find_template_result(
+    templates: list[AutoTemplate],
+    inst: Instance,
+    port: Port,
+) -> TemplateResult:
+    for template in reversed(templates):
+        if template.module != inst.module or template.start > inst.start:
+            continue
+        instance_ok, at_value = template_instance_at_value(template, inst)
+        if not instance_ok:
+            continue
+        for entry in template.entries:
+            matched, groups = template_port_match(entry, port)
+            if not matched:
+                continue
+            expr = substitute_template_expr(entry.expr, port, groups, inst,
+                                            at_value)
+            return TemplateResult(
+                expr,
+                base_signal_from_expr(expr),
+                True,
+                decl_port_from_template_expr(port, expr, True),
+            )
+        break
+    expr = signal_expr_for_port(port)
+    return TemplateResult(expr, port.name, False, port)
 
 
 def split_top_level_commas(text: str) -> list[str]:
@@ -325,6 +569,21 @@ def is_preceded_by_keyword(text: str, pos: int, keyword: str) -> bool:
     return re.search(rf"\b{re.escape(keyword)}\s*$", prefix) is not None
 
 
+def auto_lisp_vars_before(text: str, pos: int) -> tuple[tuple[str, str], ...]:
+    vars_: dict[str, str] = {}
+    pattern = re.compile(
+        r"/\*\s*AUTO_LISP\s*\(\s*setq\s+([A-Za-z_][A-Za-z0-9_$]*)\s+([^)]+?)\s*\)\s*\*/",
+        re.DOTALL,
+    )
+    for match in pattern.finditer(text, 0, pos):
+        value = match.group(2).strip()
+        if ((value.startswith('"') and value.endswith('"'))
+                or (value.startswith("'") and value.endswith("'"))):
+            value = value[1:-1]
+        vars_[match.group(1)] = value
+    return tuple(sorted(vars_.items()))
+
+
 def find_instances(text: str, module_names: Iterable[str]) -> list[Instance]:
     names = sorted(set(module_names), key=len, reverse=True)
     instances: list[Instance] = []
@@ -364,7 +623,8 @@ def find_instances(text: str, module_names: Iterable[str]) -> list[Instance]:
                 continue
             instances.append(
                 Instance(module, inst_name, start, port_open, port_close,
-                         param_open, param_close)
+                         param_open, param_close,
+                         auto_lisp_vars_before(text, start))
             )
 
     instances.sort(key=lambda item: item.start)
@@ -425,23 +685,8 @@ def parse_local_extensions(text: str) -> set[str]:
     return exts
 
 
-def simple_parse_module_file(path: pathlib.Path) -> ModuleInfo | None:
-    try:
-        text = path.read_text(encoding="utf-8")
-    except UnicodeDecodeError:
-        text = path.read_text(errors="ignore")
-
-    match = re.search(
-        r"\b(module|interface)\s+([A-Za-z_][A-Za-z0-9_$]*)"
-        r"(?P<rest>.*?)(?:endmodule|endinterface)\b",
-        text,
-        re.DOTALL,
-    )
-    if not match:
-        return None
-
-    name = match.group(2)
-    block = match.group(0)
+def module_info_from_block(name: str, block: str,
+                           path: pathlib.Path | None = None) -> ModuleInfo:
     params = [
         Param(param_match.group(1))
         for param_match in re.finditer(
@@ -473,7 +718,31 @@ def simple_parse_module_file(path: pathlib.Path) -> ModuleInfo | None:
                     entries.append((name_match.group(0), direction))
         modports[mod_match.group(1)] = entries
 
-    return ModuleInfo(name, ports, params, signals, interface_ports, modports)
+    return ModuleInfo(name, ports, params, signals, interface_ports, modports,
+                      path)
+
+
+def simple_parse_module_files(path: pathlib.Path) -> list[ModuleInfo]:
+    try:
+        text = path.read_text(encoding="utf-8")
+    except UnicodeDecodeError:
+        text = path.read_text(errors="ignore")
+
+    result: list[ModuleInfo] = []
+    pattern = re.compile(
+        r"\b(module|interface)\s+([A-Za-z_][A-Za-z0-9_$]*)"
+        r"(?P<rest>.*?)(?:endmodule|endinterface)\b",
+        re.DOTALL,
+    )
+    for match in pattern.finditer(text):
+        result.append(module_info_from_block(match.group(2), match.group(0),
+                                             path))
+    return result
+
+
+def simple_parse_module_file(path: pathlib.Path) -> ModuleInfo | None:
+    modules = simple_parse_module_files(path)
+    return modules[0] if modules else None
 
 
 class ModuleLibrary:
@@ -511,14 +780,28 @@ class ModuleLibrary:
                 info = module_from_parser_info(SvParser(str(path)).get_sv_port())
             except Exception:
                 info = None
-        return info or simple_parse_module_file(path)
+        if info is None:
+            info = simple_parse_module_file(path)
+        if info is not None:
+            info.source_path = path
+        return info
+
+    def _parse_all_files(self, path: pathlib.Path) -> list[ModuleInfo]:
+        modules: list[ModuleInfo] = []
+        first = self._parse_file(path)
+        if first is not None:
+            modules.append(first)
+        for info in simple_parse_module_files(path):
+            if all(existing.name != info.name for existing in modules):
+                modules.append(info)
+        return modules
 
     def _load(self) -> None:
         for path in self._candidate_files():
-            info = self._parse_file(path)
-            if info is None or not info.name:
-                continue
-            self.modules.setdefault(info.name, info)
+            for info in self._parse_all_files(path):
+                if not info.name:
+                    continue
+                self.modules.setdefault(info.name, info)
 
     def get(self, name: str) -> ModuleInfo | None:
         return self.modules.get(name)
@@ -536,6 +819,8 @@ def declaration_prefix(direction: str, data_type: str, packed: str) -> str:
 def declaration_data_type(port: Port, direction: str | None = None) -> str:
     direction = direction or port.direction
     data_type = normalize_type(port.data_type)
+    if direction in {"input", "output", "inout"} and data_type == "reg":
+        return ""
     if direction == "inout" and data_type == "wire":
         return ""
     return data_type
@@ -549,7 +834,7 @@ def format_declaration(
     comment: str | None = None,
     force_data_type: str | None = None,
 ) -> str:
-    direction = direction or port.direction
+    direction = port.direction if direction is None else direction
     data_type = declaration_data_type(port, direction)
     if force_data_type is not None:
         data_type = force_data_type
@@ -575,16 +860,31 @@ def signal_expr_for_port(port: Port, signal: str | None = None) -> str:
     return f"{base}{port.packed}{port.unpacked}"
 
 
-def format_connection(port: Port, indent: str, is_last: bool) -> str:
+def format_connection(
+    port: Port,
+    indent: str,
+    is_last: bool,
+    expr: str | None = None,
+    templated: bool = False,
+) -> str:
     prefix = f"{indent}.{port.name}"
     spaces = " " * max(1, CONNECTION_COLUMN - len(prefix))
     comma = "" if is_last else ","
-    return f"{prefix}{spaces}({signal_expr_for_port(port)}){comma}"
+    line = f"{prefix}{spaces}({expr or signal_expr_for_port(port)}){comma}"
+    if templated and comma:
+        line += " // Templated"
+    return line
 
 
-def generated_connection_lines(module: ModuleInfo, indent: str,
-                               skip_ports: set[str] | None = None) -> list[str]:
+def generated_connection_lines(
+    module: ModuleInfo,
+    indent: str,
+    skip_ports: set[str] | None = None,
+    resolver: Callable[[Port], TemplateResult] | None = None,
+) -> list[str]:
     skip_ports = skip_ports or set()
+    resolver = resolver or (lambda port: TemplateResult(signal_expr_for_port(port),
+                                                        port.name, False))
     lines: list[str] = []
     selected: list[Port] = [
         port for port in module.ports
@@ -600,7 +900,58 @@ def generated_connection_lines(module: ModuleInfo, indent: str,
         lines.append(f"{indent}// {title}")
         for port in group:
             emitted += 1
-            lines.append(format_connection(port, indent, emitted == total))
+            resolved = resolver(port)
+            lines.append(
+                format_connection(
+                    port,
+                    indent,
+                    emitted == total,
+                    resolved.expr,
+                    resolved.templated,
+                )
+            )
+    return lines
+
+
+def connection_order_ports(module: ModuleInfo, skip_ports: set[str] | None = None) -> list[Port]:
+    skip_ports = skip_ports or set()
+    return [
+        port
+        for direction in DIRECTION_ORDER
+        for port in module.ports
+        if port.direction == direction and port.name not in skip_ports
+    ]
+
+
+def generated_star_template_lines(
+    ports: list[Port],
+    indent: str,
+    resolver: Callable[[Port], TemplateResult],
+) -> list[str]:
+    if not ports:
+        return []
+    lines: list[str] = []
+    total = len(ports)
+    emitted = 0
+    for direction in DIRECTION_ORDER:
+        group = [port for port in ports if port.direction == direction]
+        if direction == "output" or group:
+            title = {"output": "Outputs", "inout": "Inouts", "input": "Inputs"}[direction]
+            lines.append(f"{indent}// {title}")
+        for port in group:
+            emitted += 1
+            resolved = resolver(port)
+            lines.append(
+                format_connection(
+                    port,
+                    indent,
+                    emitted == total,
+                    resolved.expr,
+                    resolved.templated and emitted != total,
+                )
+            )
+            if resolved.templated and emitted == total:
+                lines[-1] += " // Templated"
     return lines
 
 
@@ -620,7 +971,14 @@ def generated_param_connection_lines(module: ModuleInfo, indent: str,
 
 
 def parse_named_connections(text: str) -> set[str]:
-    return set(re.findall(r"\.\s*([A-Za-z_][A-Za-z0-9_$]*)\s*\(", text))
+    names = set(re.findall(r"\.\s*([A-Za-z_][A-Za-z0-9_$]*)\s*\(", text))
+    names.update(
+        re.findall(
+            r"\.\s*([A-Za-z_][A-Za-z0-9_$]*)\s*(?=,|\)|/\*)",
+            text,
+        )
+    )
+    return names
 
 
 def delete_generated_blocks(text: str) -> str:
@@ -653,10 +1011,22 @@ def delete_inline_autos(text: str, lib: ModuleLibrary | None = None) -> str:
         marker = re.search(r"/\*\s*AUTOINST\s*\*/", port_text, re.IGNORECASE)
         if marker:
             replacements.append((inst.port_open + 1 + marker.end(), inst.port_close, ""))
+            semicolon = text.find(";", inst.port_close)
+            line_end = text.find("\n", inst.port_close)
+            if semicolon >= 0 and (line_end < 0 or semicolon < line_end):
+                comment = text.find("// Templated", semicolon, line_end if line_end >= 0 else len(text))
+                if comment >= 0:
+                    replacements.append((comment, line_end if line_end >= 0 else len(text), ""))
         star = re.search(r"\.\*", port_text)
         if star and re.search(r"//\s*Outputs|//\s*Inputs|//\s*Inouts", port_text,
                               re.IGNORECASE):
             replacements.append((inst.port_open + 1 + star.end(), inst.port_close, ""))
+            semicolon = text.find(";", inst.port_close)
+            line_end = text.find("\n", inst.port_close)
+            if semicolon >= 0 and (line_end < 0 or semicolon < line_end):
+                comment = text.find("// Templated", semicolon, line_end if line_end >= 0 else len(text))
+                if comment >= 0:
+                    replacements.append((comment, line_end if line_end >= 0 else len(text), ""))
 
         if inst.param_open is not None and inst.param_close is not None:
             param_text = text[inst.param_open + 1:inst.param_close]
@@ -686,7 +1056,11 @@ def delete_auto(text: str, lib: ModuleLibrary | None = None) -> str:
     return text
 
 
-def expand_instances(text: str, lib: ModuleLibrary) -> tuple[str, list[ConnectionUse]]:
+def expand_instances(
+    text: str,
+    lib: ModuleLibrary,
+    templates: list[AutoTemplate],
+) -> tuple[str, list[ConnectionUse]]:
     replacements: list[tuple[int, int, str]] = []
     uses: list[ConnectionUse] = []
 
@@ -700,27 +1074,59 @@ def expand_instances(text: str, lib: ModuleLibrary) -> tuple[str, list[Connectio
         if marker:
             skip_ports = parse_named_connections(port_text[:marker.start()])
             indent = " " * marker_column(text, inst.port_open + 1 + marker.start())
-            lines = generated_connection_lines(module, indent, skip_ports)
+            resolver = lambda port, inst=inst: find_template_result(
+                templates, inst, port)
+            selected_ports = connection_order_ports(module, skip_ports)
+            lines = generated_connection_lines(module, indent, skip_ports,
+                                               resolver)
             replacement = "\n" + "\n".join(lines) if lines else ""
             replacements.append(
                 (inst.port_open + 1 + marker.end(), inst.port_close, replacement)
             )
+            if selected_ports:
+                last_resolved = find_template_result(
+                    templates, inst, selected_ports[-1])
+                if last_resolved.templated:
+                    semicolon = text.find(";", inst.port_close)
+                    line_end = text.find("\n", inst.port_close)
+                    if semicolon >= 0 and (line_end < 0 or semicolon < line_end):
+                        replacements.append((semicolon + 1, semicolon + 1,
+                                             " // Templated"))
             for port in module.ports:
                 if port.direction in DIRECTION_ORDER and port.name not in skip_ports:
-                    uses.append(ConnectionUse(inst, port, port.name))
+                    resolved = find_template_result(templates, inst, port)
+                    uses.append(
+                        ConnectionUse(inst, port, resolved.signal,
+                                      resolved.templated, resolved.expr,
+                                      resolved.decl_port)
+                    )
 
         star = re.search(r"\.\*", port_text)
         if star:
             open_line_start = text.rfind("\n", 0, inst.port_open) + 1
             indent = " " * (inst.port_open - open_line_start + 1)
-            lines = generated_connection_lines(module, indent, set())
-            replacement = ",\n" + "\n".join(lines) if lines else ""
-            replacements.append(
-                (inst.port_open + 1 + star.end(), inst.port_close, replacement)
-            )
+            resolver = lambda port, inst=inst: find_template_result(
+                templates, inst, port)
+            selected_ports = connection_order_ports(module)
+            templated_ports = [
+                port for port in selected_ports if resolver(port).templated
+            ]
+            lines = generated_star_template_lines(templated_ports, indent,
+                                                  resolver)
+            if lines:
+                replacement = ",\n" + "\n".join(lines) + "\n"
+                replacements.append(
+                    (inst.port_open + 1 + star.end(), inst.port_close,
+                     replacement)
+                )
             for port in module.ports:
                 if port.direction in DIRECTION_ORDER:
-                    uses.append(ConnectionUse(inst, port, port.name))
+                    resolved = find_template_result(templates, inst, port)
+                    uses.append(
+                        ConnectionUse(inst, port, resolved.signal,
+                                      resolved.templated, resolved.expr,
+                                      resolved.decl_port)
+                    )
 
         if inst.param_open is not None and inst.param_close is not None:
             param_text = text[inst.param_open + 1:inst.param_close]
@@ -855,6 +1261,18 @@ def declared_names(text: str) -> set[str]:
     return names
 
 
+def module_scope_text(text: str, pos: int) -> str:
+    module_start = 0
+    for match in re.finditer(r"\bmodule\b", text[:pos]):
+        module_start = match.start()
+    module_end = text.find("endmodule", pos)
+    if module_end < 0:
+        module_end = len(text)
+    else:
+        module_end += len("endmodule")
+    return text[module_start:module_end]
+
+
 def direction_declarations(text: str, direction: str) -> list[Port]:
     return [port for port in parse_declarations(text) if port.direction == direction]
 
@@ -863,11 +1281,85 @@ def signal_name_from_connection(use: ConnectionUse) -> str:
     return use.signal
 
 
+def grouped_signal_uses(uses: list[ConnectionUse]) -> dict[str, list[ConnectionUse]]:
+    grouped: dict[str, list[ConnectionUse]] = {}
+    for use in uses:
+        if not use.signal:
+            continue
+        grouped.setdefault(use.signal, []).append(use)
+    return grouped
+
+
+def signal_has_direction(uses_for_signal: list[ConnectionUse], direction: str) -> bool:
+    return any(use.port.direction == direction for use in uses_for_signal)
+
+
+def declaration_use_for_signal(
+    uses_for_signal: list[ConnectionUse],
+    preferred: tuple[str, ...],
+) -> ConnectionUse:
+    for direction in preferred:
+        for use in uses_for_signal:
+            if use.port.direction == direction:
+                return use
+    return uses_for_signal[0]
+
+
+def declaration_port_for_use(use: ConnectionUse) -> Port:
+    return use.decl_port or use.port
+
+
+def module_display_name(module: ModuleInfo | None, fallback: str) -> str:
+    if module and module.source_path and module.source_path.suffix == ".v":
+        if module.source_path.stem != fallback:
+            return f"{fallback}.v"
+        return module.source_path.name
+    return fallback
+
+
+def use_comment(
+    lib: ModuleLibrary,
+    direction: str,
+    uses_for_signal: list[ConnectionUse],
+) -> str:
+    first = uses_for_signal[0]
+    module = lib.get(first.instance.module)
+    label = module_display_name(module, first.instance.module)
+    if direction == "input":
+        prefix = "To"
+    elif direction == "inout":
+        prefix = "To/From"
+    else:
+        prefix = "From"
+    comment = f"// {prefix} {first.instance.name} of {label}"
+    if len(uses_for_signal) > 1:
+        comment += ", ..."
+    return comment
+
+
+def wire_comment(lib: ModuleLibrary, uses_for_signal: list[ConnectionUse]) -> str:
+    inouts = [
+        use for use in uses_for_signal
+        if use.port.direction == "inout"
+    ]
+    if inouts:
+        first = inouts[0]
+        module = lib.get(first.instance.module)
+        label = module_display_name(module, first.instance.module)
+        return f"// To/From {first.instance.name} of {label}"
+    drivers = [
+        use for use in uses_for_signal
+        if use.port.direction in {"output", "inout"}
+    ]
+    return use_comment(lib, "output", drivers or uses_for_signal)
+
+
 def expand_auto_declaration_kind(
     text: str,
     wanted: str,
     direction: str,
     uses: list[ConnectionUse],
+    lib: ModuleLibrary,
 ) -> str:
     begin = {
         "input": "inputs (from unused autoinst inputs)",
@@ -876,19 +1368,28 @@ def expand_auto_declaration_kind(
     }[direction]
 
     def generator(marker: AutoMarker) -> str:
-        names = declared_names(text)
+        scope = module_scope_text(text, marker.start)
+        names = declared_names(scope)
+        by_signal: dict[str, list[ConnectionUse]] = {}
+        for signal, signal_uses in grouped_signal_uses(uses).items():
+            if signal in names:
+                continue
+            has_input = signal_has_direction(signal_uses, "input")
+            has_output = signal_has_direction(signal_uses, "output")
+            has_inout = signal_has_direction(signal_uses, "inout")
+            if direction == "input" and has_input and not has_output and not has_inout:
+                by_signal[signal] = signal_uses
+            elif direction == "output" and has_output and not has_input and not has_inout:
+                by_signal[signal] = signal_uses
+            elif direction == "inout" and has_inout and not has_input and not has_output:
+                by_signal[signal] = signal_uses
         lines: list[str] = []
-        emitted: set[str] = set()
-        for use in uses:
-            if use.port.direction != direction:
-                continue
-            signal = signal_name_from_connection(use)
-            if signal in names or signal in emitted:
-                continue
-            emitted.add(signal)
-            comment_word = "To" if direction == "input" else "From"
-            comment = f"// {comment_word} {use.instance.name} of {use.instance.module}"
-            lines.append(format_declaration(use.port, direction, signal,
+        for signal in sorted(by_signal):
+            uses_for_signal = by_signal[signal]
+            use = declaration_use_for_signal(uses_for_signal, (direction,))
+            comment = use_comment(lib, direction, uses_for_signal)
+            lines.append(format_declaration(declaration_port_for_use(use),
+                                            direction, signal,
                                             marker.indent, comment))
         return automatic_block(marker.indent, begin, lines)
 
@@ -900,25 +1401,32 @@ def expand_autowire_like(
     wanted: str,
     kind: str,
     uses: list[ConnectionUse],
+    lib: ModuleLibrary,
 ) -> str:
     begin = "wires (for undeclared instantiated-module outputs)"
 
     def generator(marker: AutoMarker) -> str:
-        names = declared_names(text)
+        scope = module_scope_text(text, marker.start)
+        names = declared_names(scope)
+        by_signal: dict[str, list[ConnectionUse]] = {}
+        for signal, signal_uses in grouped_signal_uses(uses).items():
+            if signal in names:
+                continue
+            has_input = signal_has_direction(signal_uses, "input")
+            has_output = signal_has_direction(signal_uses, "output")
+            has_inout = signal_has_direction(signal_uses, "inout")
+            if has_output or has_inout:
+                by_signal[signal] = signal_uses
         lines: list[str] = []
-        emitted: set[str] = set()
-        for use in uses:
-            if use.port.direction not in {"output", "inout"}:
-                continue
-            signal = signal_name_from_connection(use)
-            if signal in names or signal in emitted:
-                continue
-            emitted.add(signal)
+        for signal in sorted(by_signal):
+            uses_for_signal = by_signal[signal]
+            use = declaration_use_for_signal(uses_for_signal, ("output", "inout"))
             data_type = "logic" if kind == "logic" else "wire"
-            port = dataclasses.replace(use.port, data_type=data_type)
+            port = dataclasses.replace(declaration_port_for_use(use),
+                                       data_type=data_type)
             lines.append(format_declaration(port, "", signal,
                                             marker.indent,
-                                            f"// From {use.instance.name} of {use.instance.module}",
+                                            wire_comment(lib, uses_for_signal),
                                             force_data_type=data_type))
         return automatic_block(marker.indent, begin, lines)
 
@@ -1147,16 +1655,53 @@ def collect_autoarg_ports(text: str) -> list[str]:
     return names
 
 
+def collect_autoarg_grouped(text: str) -> dict[str, list[str]]:
+    grouped = {"output": [], "inout": [], "input": []}
+    seen: set[str] = set()
+    for port in parse_declarations(text):
+        if port.direction not in grouped or port.name in seen:
+            continue
+        seen.add(port.name)
+        grouped[port.direction].append(port.name)
+    return grouped
+
+
+def local_auto_arg_sort(text: str) -> bool:
+    return re.search(r"verilog-auto-arg-sort\s*:\s*t\b", text) is not None
+
+
 def expand_autoarg(text: str) -> str:
-    names = collect_autoarg_ports(text)
     replacements: list[tuple[int, int, str]] = []
     for marker in iter_auto_markers(text, "AUTOARG"):
         close = text.find(");", marker.end)
         if close < 0:
             continue
-        replacement = "".join(names)
-        if names:
-            replacement = ", ".join(names)
+        scope = module_scope_text(text, marker.start)
+        grouped = collect_autoarg_grouped(scope)
+        sort_args = local_auto_arg_sort(text)
+        reverse_args = "Beginning of automatic" in scope
+        output_names = (sorted(grouped["output"]) if sort_args
+                        else (list(reversed(grouped["output"]))
+                              if reverse_args else grouped["output"]))
+        inout_names = (sorted(grouped["inout"]) if sort_args
+                       else (list(reversed(grouped["inout"]))
+                             if reverse_args else grouped["inout"]))
+        input_names = (sorted(grouped["input"]) if sort_args
+                       else (list(reversed(grouped["input"]))
+                             if reverse_args else grouped["input"]))
+        lines: list[str] = []
+        if output_names:
+            lines.append("   // Outputs")
+            comma = "," if input_names or inout_names else ""
+            lines.append(f"   {', '.join(output_names)}{comma}")
+        if inout_names:
+            lines.append("   // Inouts")
+            comma = "," if input_names else ""
+            lines.append(f"   {', '.join(inout_names)}{comma}")
+        if input_names:
+            lines.append("   // Inputs")
+            lines.append(f"   {', '.join(input_names)}")
+        replacement = "\n" + "\n".join(lines) + "\n   " if lines else ""
         replacements.append((marker.end, close, replacement))
     return apply_replacements(text, replacements)
 
@@ -1168,21 +1713,22 @@ def run_batch_auto(path: pathlib.Path) -> None:
     # The delete pass may expose local variables cleanly; refresh the library in
     # case the original top file was not legal enough for the first scan.
     lib = ModuleLibrary(path, text)
+    templates = parse_auto_templates(text)
 
-    text, uses = expand_instances(text, lib)
+    text, uses = expand_instances(text, lib, templates)
     text = expand_autoinoutmodport(text, lib)
     text = expand_autoinoutmodule_kind(text, lib, "AUTOINOUTMODULE", "module")
     text = expand_autoinoutmodule_kind(text, lib, "AUTOINOUTCOMP", "comp")
     text = expand_autoinoutmodule_kind(text, lib, "AUTOINOUTIN", "in")
     text = expand_autoinoutparam(text, lib)
-    text = expand_auto_declaration_kind(text, "AUTOOUTPUT", "output", uses)
-    text = expand_auto_declaration_kind(text, "AUTOINPUT", "input", uses)
-    text = expand_auto_declaration_kind(text, "AUTOINOUT", "inout", uses)
+    text = expand_auto_declaration_kind(text, "AUTOOUTPUT", "output", uses, lib)
+    text = expand_auto_declaration_kind(text, "AUTOINPUT", "input", uses, lib)
+    text = expand_auto_declaration_kind(text, "AUTOINOUT", "inout", uses, lib)
     text = expand_autotieoff(text)
     text = expand_autoundef(text)
     text = expand_autoassignmodport(text, lib)
-    text = expand_autowire_like(text, "AUTOLOGIC", "logic", uses)
-    text = expand_autowire_like(text, "AUTOWIRE", "wire", uses)
+    text = expand_autowire_like(text, "AUTOLOGIC", "logic", uses, lib)
+    text = expand_autowire_like(text, "AUTOWIRE", "wire", uses, lib)
     text = expand_autosense(text)
     text = expand_autounused(text)
     text = expand_autoarg(text)

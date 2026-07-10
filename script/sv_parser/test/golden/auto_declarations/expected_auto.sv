@@ -1,5 +1,12 @@
 module top (
-    /*AUTOARG*/clk, din, dout, pad);
+    /*AUTOARG*/
+   // Outputs
+   dout,
+   // Inouts
+   pad,
+   // Inputs
+   din, clk
+   );
     /*AUTOINPUT*/
     // Beginning of automatic inputs (from unused autoinst inputs)
     input logic                 clk; // To u_leaf of leaf
@@ -11,7 +18,7 @@ module top (
     // End of automatics
     /*AUTOINOUT*/
     // Beginning of automatic inouts (from unused autoinst inouts)
-    inout                       pad; // From u_leaf of leaf
+    inout                       pad; // To/From u_leaf of leaf
     // End of automatics
     /*AUTOWIRE*/
 

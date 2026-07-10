@@ -5,12 +5,7 @@ module top;
     logic [3:0] q;
     logic       en;
 
-    leaf u_leaf (.*,
-                 // Outputs
-                 .dout                  (dout[3:0]),
-                 // Inputs
-                 .clk                   (clk),
-                 .din                   (din[3:0]));
+    leaf u_leaf (.*);
 
     always @ (/*AUTOSENSE*/ or din or dout or en) begin
         if (en) begin
