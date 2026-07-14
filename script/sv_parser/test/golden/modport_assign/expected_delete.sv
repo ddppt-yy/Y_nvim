@@ -4,4 +4,3 @@ module mp_wrap (
     /*AUTOINOUTMODPORT("bus_if", "drv", "", "m_")*/
     /*AUTOASSIGNMODPORT("bus_if", "drv", "vif", "", "m_")*/
 endmodule
-

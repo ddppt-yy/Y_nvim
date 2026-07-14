@@ -7,6 +7,7 @@ import argparse
 import difflib
 import pathlib
 import shutil
+import shlex
 import subprocess
 import sys
 import tempfile
@@ -30,9 +31,11 @@ def copy_case(case_dir: pathlib.Path, work_dir: pathlib.Path) -> pathlib.Path:
     return work_dir / "input.sv"
 
 
-def run_cmd(command: str, top_file: pathlib.Path) -> subprocess.CompletedProcess[str]:
+def run_cmd(
+    runner: list[str], command: str, top_file: pathlib.Path
+) -> subprocess.CompletedProcess[str]:
     return subprocess.run(
-        [sys.executable, str(SCRIPT), command, str(top_file)],
+        [*runner, command, str(top_file)],
         cwd=str(ROOT),
         text=True,
         stdout=subprocess.PIPE,
@@ -57,7 +60,7 @@ def assert_text_equal(case_name: str, phase: str, actual: str, expected: str) ->
     return False
 
 
-def run_case(case_dir: pathlib.Path) -> bool:
+def run_case(case_dir: pathlib.Path, runner: list[str]) -> bool:
     case_name = case_dir.name
     expected_auto = read_text(case_dir / "expected_auto.sv")
     expected_delete = read_text(case_dir / "expected_delete.sv")
@@ -66,7 +69,7 @@ def run_case(case_dir: pathlib.Path) -> bool:
         work_dir = pathlib.Path(tmp)
         top_file = copy_case(case_dir, work_dir)
 
-        proc = run_cmd("verilog-batch-auto", top_file)
+        proc = run_cmd(runner, "verilog-batch-auto", top_file)
         if proc.returncode != 0:
             print(proc.stdout, file=sys.stderr)
             print(proc.stderr, file=sys.stderr)
@@ -76,7 +79,7 @@ def run_case(case_dir: pathlib.Path) -> bool:
         if not assert_text_equal(case_name, "auto", actual_auto, expected_auto):
             return False
 
-        proc = run_cmd("verilog-batch-delete-auto", top_file)
+        proc = run_cmd(runner, "verilog-batch-delete-auto", top_file)
         if proc.returncode != 0:
             print(proc.stdout, file=sys.stderr)
             print(proc.stderr, file=sys.stderr)
@@ -86,7 +89,7 @@ def run_case(case_dir: pathlib.Path) -> bool:
         if not assert_text_equal(case_name, "delete", actual_delete, expected_delete):
             return False
 
-        proc = run_cmd("verilog-batch-auto", top_file)
+        proc = run_cmd(runner, "verilog-batch-auto", top_file)
         if proc.returncode != 0:
             print(proc.stdout, file=sys.stderr)
             print(proc.stderr, file=sys.stderr)
@@ -113,8 +116,25 @@ def discover_cases(selected: list[str]) -> list[pathlib.Path]:
 
 def main(argv: list[str] | None = None) -> int:
     parser = argparse.ArgumentParser()
+    parser.add_argument(
+        "--module",
+        help="run as: python -m MODULE command file",
+    )
+    parser.add_argument(
+        "--script",
+        help="run as: python SCRIPT command file; shell-style quoting allowed",
+    )
     parser.add_argument("case", nargs="*", help="optional case name filter")
     args = parser.parse_args(argv)
+
+    if args.module:
+        runner = [sys.executable, "-m", args.module]
+    elif args.script:
+        runner = [sys.executable, *shlex.split(args.script)]
+    elif SCRIPT.exists():
+        runner = [sys.executable, str(SCRIPT)]
+    else:
+        runner = [sys.executable, "-m", "verilog_mode_py"]
 
     cases = discover_cases(args.case)
     if not cases:
@@ -123,7 +143,7 @@ def main(argv: list[str] | None = None) -> int:
 
     ok = True
     for case_dir in cases:
-        ok = run_case(case_dir) and ok
+        ok = run_case(case_dir, runner) and ok
     return 0 if ok else 1
 
 

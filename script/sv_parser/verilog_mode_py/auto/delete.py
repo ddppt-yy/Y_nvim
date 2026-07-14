@@ -13,10 +13,33 @@ AUTOMATIC_BLOCK_RE = re.compile(
 )
 
 
+AUTO_MARKER_RE = re.compile(r"/\*AUTO[A-Z0-9_]*(?:\([^*]*\))?\*/", re.I)
+
+
+def _delete_marker_automatic_blocks(text: str) -> str:
+    spans: list[tuple[int, int]] = []
+    for marker in AUTO_MARKER_RE.finditer(text):
+        whitespace = re.match(r"\s*", text[marker.end() :])
+        first_nonspace = marker.end() + (whitespace.end() if whitespace else 0)
+        if first_nonspace >= len(text):
+            continue
+        block_start = text.rfind("\n", 0, first_nonspace) + 1
+        block = AUTOMATIC_BLOCK_RE.match(text, block_start)
+        if block is not None:
+            spans.append((block.start(), block.end()))
+    for start, end in sorted(set(spans), reverse=True):
+        text = text[:start] + text[end:]
+    return text
+
+
 def _collapse_marker_region(text: str, marker: str) -> str:
-    pattern = re.compile(r"/\*" + re.escape(marker) + r"(?:\([^*]*\))?\*/")
+    pattern = re.compile(
+        r"/\*" + re.escape(marker) + r"(?:\([^*]*\))?\*/",
+        re.I,
+    )
+    pos = 0
     while True:
-        match = pattern.search(text)
+        match = pattern.search(text, pos)
         if match is None:
             return text
         close = find_port_close_after_marker(text, match.end())
@@ -24,12 +47,26 @@ def _collapse_marker_region(text: str, marker: str) -> str:
             return text
         replacement = text[: match.end()] + ")" + text[close + 1 :]
         if replacement == text:
-            return text
+            pos = match.end()
+            continue
         text = replacement
+        pos = match.end()
 
 
 def delete_auto(text: str) -> str:
-    text = AUTOMATIC_BLOCK_RE.sub("", text)
+    text = _delete_marker_automatic_blocks(text)
     for marker in ("AUTOARG", "AUTOINST", "AUTOINSTPARAM", "AUTOSENSE"):
         text = _collapse_marker_region(text, marker)
+    text = re.sub(
+        r"(/\*AUTOINST(?:\([^*]*\))?\*/\);)[ \t]*//[^\n]*Templated[^\n]*",
+        r"\1",
+        text,
+        flags=re.I,
+    )
+    text = re.sub(
+        r"(/\*AUTOINSTPARAM(?:\([^*]*\))?\*/\))[ \t]*//[^\n]*Templated[^\n]*",
+        r"\1",
+        text,
+        flags=re.I,
+    )
     return text

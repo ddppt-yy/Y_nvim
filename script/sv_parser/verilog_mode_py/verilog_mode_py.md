@@ -643,6 +643,7 @@ Acceptance:
 - arbitrary template Lisp expression
 - `AUTOINSERTLISP`
 - `AUTOINSERTLAST`
+- `verilog-auto-inst-dot-name` shorthand preservation/generation
 - file-local `eval`
 - user hooks
 

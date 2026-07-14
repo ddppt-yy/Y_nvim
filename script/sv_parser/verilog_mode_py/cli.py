@@ -16,7 +16,7 @@ from .library import ModuleLibrary
 
 def run_delete(path: Path) -> None:
     text = path.read_text(encoding="utf-8")
-    path.write_text(delete_auto(text), encoding="utf-8")
+    path.write_text(delete_auto(text).rstrip() + "\n", encoding="utf-8")
 
 
 def run_auto(path: Path) -> None:
@@ -30,7 +30,7 @@ def run_auto(path: Path) -> None:
     text = expand_declarations(text, library)
     text = expand_autosense(text)
     text = expand_autoarg(text)
-    path.write_text(text, encoding="utf-8")
+    path.write_text(text.rstrip() + "\n", encoding="utf-8")
 
 
 def main(argv: list[str] | None = None) -> int:

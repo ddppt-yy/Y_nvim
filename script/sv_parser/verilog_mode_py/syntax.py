@@ -5,7 +5,7 @@ from collections.abc import Iterator
 from contextlib import contextmanager
 
 
-IDENT_RE = re.compile(r"\\\S+|[A-Za-z_][$A-Za-z0-9_]*")
+IDENT_RE = re.compile(r"\\\S+|`[A-Za-z_][$A-Za-z0-9_]*|[A-Za-z_][$A-Za-z0-9_]*")
 
 
 def mask_syntax(text: str, *, keep_newlines: bool = True) -> str:
@@ -52,7 +52,7 @@ def mask_syntax(text: str, *, keep_newlines: bool = True) -> str:
                 j += 1
             i = j
             continue
-        if ch == "(" and nxt == "*":
+        if ch == "(" and nxt == "*" and previous_nonspace(text, i) != "@":
             j = i
             while j + 1 < n and not (text[j] == "*" and text[j + 1] == ")"):
                 if not (keep_newlines and text[j] == "\n"):
@@ -164,6 +164,36 @@ def split_top_level(text: str, sep: str = ",") -> list[str]:
             start = pos + 1
     parts.append(text[start:])
     return parts
+
+
+def iter_bracketed_ranges(text: str) -> list[tuple[int, int, str]]:
+    masked = mask_syntax(text, keep_newlines=False)
+    ranges: list[tuple[int, int, str]] = []
+    pos = 0
+    while pos < len(masked):
+        if masked[pos] != "[":
+            pos += 1
+            continue
+        close = find_matching(text, pos)
+        if close is None:
+            pos += 1
+            continue
+        ranges.append((pos, close + 1, text[pos : close + 1].strip()))
+        pos = close + 1
+    return ranges
+
+
+def split_bracketed_dims(text: str) -> list[str]:
+    return [dim for _, _, dim in iter_bracketed_ranges(text)]
+
+
+def is_only_bracketed_dims(text: str) -> bool:
+    if not text.strip():
+        return False
+    chars = list(mask_syntax(text, keep_newlines=False))
+    for start, end, _ in iter_bracketed_ranges(text):
+        chars[start:end] = " " * (end - start)
+    return not "".join(chars).strip()
 
 
 def split_statements(text: str) -> list[tuple[int, int, str]]:

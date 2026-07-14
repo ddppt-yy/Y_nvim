@@ -13,4 +13,3 @@ module top;
         end
     end
 endmodule
-

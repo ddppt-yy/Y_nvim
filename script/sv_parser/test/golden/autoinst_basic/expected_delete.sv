@@ -6,4 +6,3 @@ module top;
     leaf u_leaf (
         /*AUTOINST*/);
 endmodule
-

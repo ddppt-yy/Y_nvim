@@ -9,16 +9,16 @@ module top (
    );
     /*AUTOINPUT*/
     // Beginning of automatic inputs (from unused autoinst inputs)
-    input logic                 clk; // To u_leaf of leaf
-    input logic [3:0]           din; // To u_leaf of leaf
+    input logic                 clk; // To u_leaf of leaf.v
+    input logic [3:0]           din; // To u_leaf of leaf.v
     // End of automatics
     /*AUTOOUTPUT*/
     // Beginning of automatic outputs (from unused autoinst outputs)
-    output logic [3:0]          dout; // From u_leaf of leaf
+    output logic [3:0]          dout; // From u_leaf of leaf.v
     // End of automatics
     /*AUTOINOUT*/
     // Beginning of automatic inouts (from unused autoinst inouts)
-    inout                       pad; // To/From u_leaf of leaf
+    inout                       pad; // To/From u_leaf of leaf.v
     // End of automatics
     /*AUTOWIRE*/
 
@@ -32,4 +32,3 @@ module top (
         .clk                            (clk),
         .din                            (din[3:0]));
 endmodule
-

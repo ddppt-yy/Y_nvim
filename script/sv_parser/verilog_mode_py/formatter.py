@@ -7,11 +7,17 @@ GROUP_TITLES = {
     "output": "Outputs",
     "inout": "Inouts",
     "input": "Inputs",
+    "interface": "Interfaces",
 }
 
 
 def direction_groups(ports: list[Port]) -> list[tuple[str, list[Port]]]:
     return [
+        (
+            "interface",
+            [port for port in ports if not port.direction and port.interface_type],
+        )
+    ] + [
         (direction, [port for port in ports if port.direction == direction])
         for direction in ("output", "inout", "input")
     ]
@@ -27,10 +33,18 @@ def declaration_prefix(port: Port) -> str:
     return " ".join(piece for piece in pieces if piece)
 
 
+def format_identifier(name: str, *, terminator: str = "") -> str:
+    if name.startswith("\\") and terminator:
+        return f"{name} {terminator}"
+    return f"{name}{terminator}"
+
+
 def format_declaration(indent: str, port: Port, comment: str = "") -> str:
     prefix = declaration_prefix(port)
     suffix = f" {comment}" if comment else ""
-    return f"{indent}{prefix:<28}{port.name}{port.unpacked};{suffix}"
+    name = format_identifier(port.name, terminator="")
+    terminator = format_identifier(port.name, terminator=";")[len(name) :]
+    return f"{indent}{prefix:<28}{name}{port.unpacked}{terminator}{suffix}"
 
 
 def format_parameter(indent: str, param: Param) -> str:

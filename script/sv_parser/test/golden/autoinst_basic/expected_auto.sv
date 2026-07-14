@@ -11,4 +11,3 @@ module top;
         .clk                            (clk),
         .din                            (din[3:0]));
 endmodule
-

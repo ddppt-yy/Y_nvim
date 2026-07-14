@@ -19,4 +19,3 @@ module mp_wrap (
     assign m_rsp_rdy = vif.rsp_rdy;
     // End of automatics
 endmodule
-

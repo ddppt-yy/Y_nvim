@@ -20,6 +20,8 @@ class Param:
     value: str = ""
     data_type: str = ""
     packed: str = ""
+    unpacked: str = ""
+    kind: str = "parameter"
 
 
 @dataclass(frozen=True)

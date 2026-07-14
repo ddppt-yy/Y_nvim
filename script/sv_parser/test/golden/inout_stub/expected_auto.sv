@@ -8,7 +8,7 @@ module shell (
    // Inouts
    pad,
    // Inputs
-   din, clk
+   clk, din
    );
     /*AUTOINOUTPARAM("ref_mod")*/
     // Beginning of automatic parameters (from specific module)
@@ -24,7 +24,7 @@ module shell (
     // End of automatics
     /*AUTOTIEOFF*/
     // Beginning of automatic tieoffs (for this module's unterminated outputs)
-    assign dout = '0;
+    wire [WIDTH-1:0]            dout = '0;
     // End of automatics
     wire _unused_ok = &{1'b0,
                         /*AUTOUNUSED*/
@@ -40,4 +40,3 @@ module shell (
     `undef LOCAL_B
     // End of automatics
 endmodule
-

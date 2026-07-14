@@ -11,4 +11,3 @@ module shell (
                         1'b0};
     /*AUTOUNDEF*/
 endmodule
-
