@@ -1,4 +1,16 @@
 #!/usr/bin/env python3
+# -------------------------------------------------------
+# Version        : v1.0
+# Description    : Parse SystemVerilog module/interface declarations.
+#                  Supported extractions:
+#                    - module name
+#                    - ports (direction, type, packed dimensions)
+#                    - parameters / localparameters
+#                    - signals (data declarations, net declarations)
+#                    - package imports
+#                    - sub-module instantiations (ref_name, inst_name) 
+# -------------------------------------------------------
+
 """SystemVerilog Parser using verible-verilog-syntax
 
 This module provides a SvParser class for parsing SystemVerilog files
@@ -1031,11 +1043,19 @@ class SvParser:
                     # Check for kGateInstance (for interface instances)
                     gate_inst = reg_var_list.find({"tag": "kGateInstance"})
                     if gate_inst:
-                        # Check if it's a module instantiation (has kPortActualList)
+                        # Check if it's a module instantiation (has kPortActualList
+                        # or non-empty kParenGroup)
                         port_actual = gate_inst.find({"tag": "kPortActualList"})
                         if port_actual:
                             # This is a module instantiation, skip it
                             return ("", "", "", "")
+
+                        paren_group = gate_inst.find({"tag": "kParenGroup"})
+                        if paren_group is not None:
+                            paren_text = paren_group.text
+                            if paren_text and paren_text != "()":
+                                # Non-empty paren group = module instantiation
+                                return ("", "", "", "")
                         
                         name = self._get_direct_identifier_name(gate_inst)
                         # Check for parentheses (interface instance)
@@ -1113,7 +1133,8 @@ class SvParser:
             'lpara': [],
             'port': [],
             'signal': [],
-            'import': []
+            'import': [],
+            'sub_module': []
         }
 
     def _new_interface_info(self) -> dict:
@@ -1265,6 +1286,70 @@ class SvParser:
         signal_entries.sort(key=lambda x: x[0])
         return signal_entries
 
+    def _parse_sub_module_instantiations(self, declaration) -> List[tuple]:
+        """Parse sub-module instantiations from a module declaration.
+
+        A sub-module instantiation is a kDataDeclaration whose kGateInstance
+        contains a non-empty kParenGroup or a kPortActualList, distinguishing
+        it from interface instances (which have empty parentheses).
+
+        Returns:
+            A list of (ref_name, inst_name) tuples.
+        """
+        sub_modules = []
+
+        for data_decl in declaration.iter_find_all({"tag": "kDataDeclaration"}):
+            if self._is_module_header_child(data_decl):
+                continue
+
+            inst_base = data_decl.find({"tag": "kInstantiationBase"})
+            if inst_base is None:
+                continue
+
+            # Get reference module name from kDataType
+            ref_name = ""
+            inst_type = inst_base.find({"tag": "kInstantiationType"})
+            if inst_type:
+                dt_node = inst_type.find({"tag": "kDataType"})
+                if dt_node:
+                    ref_name = self._get_data_type_from_node(dt_node)
+
+            if not ref_name:
+                continue
+
+            # Get instance name from kGateInstance
+            reg_var_list = inst_base.find(
+                {"tag": "kGateInstanceRegisterVariableList"})
+            if reg_var_list is None:
+                continue
+
+            for gate_inst in reg_var_list.iter_find_all({"tag": "kGateInstance"}):
+                # A module instantiation has kPortActualList (explicit ports)
+                # or a non-empty kParenGroup (e.g. /*AUTOINST*/).
+                is_module_inst = False
+
+                port_actual = gate_inst.find({"tag": "kPortActualList"})
+                if port_actual is not None:
+                    is_module_inst = True
+                else:
+                    paren_group = gate_inst.find({"tag": "kParenGroup"})
+                    if paren_group is not None:
+                        paren_text = paren_group.text
+                        # Interface instances have empty (), module
+                        # instantiations have content inside ().
+                        if paren_text and paren_text != "()":
+                            is_module_inst = True
+
+                if not is_module_inst:
+                    continue
+
+                inst_name = self._get_direct_identifier_name(gate_inst)
+                if inst_name:
+                    sub_modules.append((ref_name, inst_name))
+
+        # Sort by source position
+        return sub_modules
+
     def _parse_module_declaration(self, module) -> dict:
         """Build parser output for a module declaration."""
         result = self._new_module_info()
@@ -1290,6 +1375,8 @@ class SvParser:
 
         signal_entries = self._collect_signal_entries(module)
         result['signal'] = [info for _, info in signal_entries]
+
+        result['sub_module'] = self._parse_sub_module_instantiations(module)
 
         return result
 
