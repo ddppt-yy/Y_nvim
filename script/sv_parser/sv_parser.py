@@ -17,6 +17,7 @@ This module provides a SvParser class for parsing SystemVerilog files
 and extracting module information including ports, parameters, and signals.
 """
 
+import re
 import sys
 import json
 import subprocess
@@ -1287,67 +1288,83 @@ class SvParser:
         return signal_entries
 
     def _parse_sub_module_instantiations(self, declaration) -> List[tuple]:
-        """Parse sub-module instantiations from a module declaration.
+        """Parse sub-module instantiations from source text via regex scanning.
 
-        A sub-module instantiation is a kDataDeclaration whose kGateInstance
-        contains a non-empty kParenGroup or a kPortActualList, distinguishing
-        it from interface instances (which have empty parentheses).
+        Unlike the verible AST based extraction, this scans the raw source
+        text directly so that module instantiations inside `ifdef/`else
+        branches are all captured, matching verilog-mode behavior.
+
+        Pattern (Verilog-mode style):
+            <ref_name> [#(...)] <inst_name> [( ... )] ;
+        where the parentheses contain a port connection list (not empty).
+        Interface instances `intf_if u_if ();` are skipped because their
+        parentheses are empty.
 
         Returns:
-            A list of (ref_name, inst_name) tuples.
+            A list of (ref_name, inst_name) tuples in source order.
         """
-        sub_modules = []
+        sub_modules: List[tuple] = []
+        src = declaration.text
+        if not src:
+            return sub_modules
 
-        for data_decl in declaration.iter_find_all({"tag": "kDataDeclaration"}):
-            if self._is_module_header_child(data_decl):
+        # Replace block comments /* ... */ and line comments // with a single
+        # 'x' character. This keeps positions stable and ensures parentheses
+        # around /*AUTOINST*/ stay non-empty so they are still recognized as
+        # module instantiations (matching verilog-mode behavior).
+        stripped = re.sub(r"/\*.*?\*/", "x", src, flags=re.DOTALL)
+        stripped = re.sub(r"//[^\n]*", "x", stripped)
+
+        # Identify candidate instantiation head tokens, followed by a
+        # non-empty parenthesized port list and a ';'.
+        ident = r"(?:\\[^\s]+|[a-zA-Z_][\w$]*)"
+        pattern = re.compile(
+            r"(?<![\w$])"
+            r"(?P<ref>" + ident + r")"
+            r"\s+(?:\#\s*\((?:[^()]|\([^()]*\))*\)\s*)?"  # optional param override
+            r"(?P<inst>" + ident + r")"
+            r"\s*\("
+        )
+
+        for m in pattern.finditer(stripped):
+            ref_name = m.group("ref")
+            inst_name = m.group("inst")
+
+            # Walk the parenthesized region starting at '(' to find its
+            # matching ')'. Reject empty "()" (interface instance) and
+            # unterminated groups.
+            open_pos = m.end() - 1            # index of '('
+            depth = 0
+            close_pos = -1
+            for i in range(open_pos, len(stripped)):
+                c = stripped[i]
+                if c == "(":
+                    depth += 1
+                elif c == ")":
+                    depth -= 1
+                    if depth == 0:
+                        close_pos = i
+                        break
+            if close_pos == -1:
                 continue
 
-            inst_base = data_decl.find({"tag": "kInstantiationBase"})
-            if inst_base is None:
+            # Interface instances have an empty paren group: skip them.
+            # Since comments are replaced with 'x', "(/*AUTOINST*/)" becomes
+            # "(x)" which is non-empty and correctly treated as a module
+            # instantiation.
+            inner = stripped[open_pos + 1:close_pos]
+            if not inner.strip():
                 continue
 
-            # Get reference module name from kDataType
-            ref_name = ""
-            inst_type = inst_base.find({"tag": "kInstantiationType"})
-            if inst_type:
-                dt_node = inst_type.find({"tag": "kDataType"})
-                if dt_node:
-                    ref_name = self._get_data_type_from_node(dt_node)
-
-            if not ref_name:
+            # Require a terminating ';' after the closing paren (allowing
+            # whitespace) to avoid matching function-call-like constructs.
+            tail = stripped[close_pos + 1:]
+            tail_ws = tail.lstrip()
+            if not tail_ws.startswith(";"):
                 continue
 
-            # Get instance name from kGateInstance
-            reg_var_list = inst_base.find(
-                {"tag": "kGateInstanceRegisterVariableList"})
-            if reg_var_list is None:
-                continue
+            sub_modules.append((ref_name, inst_name))
 
-            for gate_inst in reg_var_list.iter_find_all({"tag": "kGateInstance"}):
-                # A module instantiation has kPortActualList (explicit ports)
-                # or a non-empty kParenGroup (e.g. /*AUTOINST*/).
-                is_module_inst = False
-
-                port_actual = gate_inst.find({"tag": "kPortActualList"})
-                if port_actual is not None:
-                    is_module_inst = True
-                else:
-                    paren_group = gate_inst.find({"tag": "kParenGroup"})
-                    if paren_group is not None:
-                        paren_text = paren_group.text
-                        # Interface instances have empty (), module
-                        # instantiations have content inside ().
-                        if paren_text and paren_text != "()":
-                            is_module_inst = True
-
-                if not is_module_inst:
-                    continue
-
-                inst_name = self._get_direct_identifier_name(gate_inst)
-                if inst_name:
-                    sub_modules.append((ref_name, inst_name))
-
-        # Sort by source position
         return sub_modules
 
     def _parse_module_declaration(self, module) -> dict:
