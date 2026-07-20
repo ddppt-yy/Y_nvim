@@ -16,8 +16,8 @@ module XXXX
 //BLOCK_BEGIN
 import abc_def::*;
 #(
-    parameter XX    =   XX,
-    parameter XX    =   XX
+    parameter XX    =   16,
+    parameter OO    =   8
 )
 //BLOCK_END
 //********************
@@ -25,11 +25,11 @@ import abc_def::*;
 //********************
 //BLOCK_BEGIN
 (
-    input   logic       [xx     -1:0]   clk,
-    input   logic       [xx     -1:0]   resetn,
+    input   logic                       clk,
+    input   logic                       resetn,
 
-    output  logic       [xx     -1:0]   xx,
-    output  logic                       xx
+    input   logic       [XX     -1:0]   xx,
+    output  logic       [OO     -1:0]   oo
 );
 //BLOCK_END
 
@@ -46,8 +46,10 @@ interface_a_wr_if       a_c_wr();
 interface_b_cmd_if      b_a_cmd();
 
 
-logic         [xx     -1:0]   xx;
-logic         [xx     -1:0]   xx;
+logic         [XX     -1:0]   a_c;
+logic         [XX     -1:0]   c_a;
+logic         [XX     -1:0]   a_b;
+logic         [XX     -1:0]   b_a;
 /*AUTOWIRE*/
 /*AUTOREG*/
 
