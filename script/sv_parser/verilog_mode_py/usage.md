@@ -18,15 +18,16 @@ emacs -Q --batch -l ./ex.el -f vm-dump-auto-cli -- top.sv auto_report.json -y rt
 
 ## 输出文件
 
-执行 `vm-dump-auto` / `vm-dump-auto-cli` 时默认会生成三份报告：
+执行 `vm-dump-auto` / `vm-dump-auto-cli` 时默认会生成四份报告：
 
 | 文件            | 位置                                      | 含义                                                    |
 | --------------- | ----------------------------------------- | ------------------------------------------------------- |
 | JSON 输出文件   | 命令行第二个参数指定的位置                | 机器可读的完整连接报告。                                |
-| `signal.txt`    | 与 JSON 输出文件同目录                    | 所有已例化 submodule 的互联 `logic` 和 interface 声明。 |
+| `signal_inner.txt` | 与 JSON 输出文件同目录                | 内部 submodule 之间的互联 `logic` 和 interface 声明。   |
+| `signal_ex.txt` | 与 JSON 输出文件同目录                    | 对外/单端点的 `logic` 和 interface 声明。                |
 | `unconnect.txt` | 与 JSON 输出文件同目录                    | 按具体 instance 列出的未连接 port/interface。           |
 
-当 JSON 输出参数为 `-` 或省略时，`signal.txt` 和 `unconnect.txt` 会写到当前 `default-directory`。
+当 JSON 输出参数为 `-` 或省略时，`signal_inner.txt`、`signal_ex.txt` 和 `unconnect.txt` 会写到当前 `default-directory`。
 
 如只需要 JSON，可在调用前关闭：
 
@@ -34,26 +35,36 @@ emacs -Q --batch -l ./ex.el -f vm-dump-auto-cli -- top.sv auto_report.json -y rt
 (setq vm-auto-report-write-text-files nil)
 ```
 
-## `signal.txt`
+## `signal_inner.txt` / `signal_ex.txt`
 
-`signal.txt` 按当前输入文件中的每个 design unit 分组，包含三段：
+两个文件都按当前输入文件中的每个 design unit 分组，结构一致，但内容按信号范围拆开：
 
 | 段落                                            | 含义                                                                                 |
 | ----------------------------------------------- | ------------------------------------------------------------------------------------ |
-| `Logic interconnect declarations`               | 从 `instances[].connections` 汇总出的普通端口互联信号声明，统一输出为 `logic ...;`。 |
-| `Interface interconnect declarations`           | 从 interface port 连接汇总出的 interface 实例声明，格式为 `if_type if_inst ();`。    |
+| `Internal logic interconnect declarations` / `External logic interconnect declarations` | 从 `instances[].connections` 汇总出的普通端口互联信号声明。多端点互联进 `signal_inner.txt`，单端点/对外信号进 `signal_ex.txt`。 |
+| `Internal interface interconnect declarations` / `External interface interconnect declarations` | 从 interface port 连接汇总出的 interface 实例声明。多端点 interface 进 `signal_inner.txt`，单端点/对外 interface 进 `signal_ex.txt`。 |
 | `Connections that were not converted to declarations` | 不能安全转成声明的连接表达式，例如拼接、常量、函数调用或找不到定义的 `.*`。          |
 
-声明宽度、`signed`、interface type 等信息来自被例化 submodule 的端口定义；同名信号会合并，注释里会标出 instance port 之间的连接关系。`logic` 会尽量按方向输出 `from ... to ...`，interface 会输出 `connect ... with ...`。`.*` 会尽量按 submodule 端口定义展开为同名连接后再进入声明列表。
+声明宽度、`signed`、interface type 等信息来自被例化 submodule 的端口定义；同名信号会合并，注释里会标出 instance port 之间的连接关系。`logic` 会尽量按方向输出 `from ... to ...`，interface 会输出 `connect ... with ...`。多端点信号写入 `signal_inner.txt`，单端点信号和难以稳定归类的复杂表达式默认写入 `signal_ex.txt`。`.*` 会尽量按 submodule 端口定义展开为同名连接后再进入声明列表。
 
 示例：
 
 ```systemverilog
-// Logic interconnect declarations
+// Internal logic interconnect declarations
 logic data;                                      // from u_prod.data_o to u_cons.data_i
 
-// Interface interconnect declarations
+// Internal interface interconnect declarations
 axi_if m_axi ();                                 // connect u_master.m_axi with u_slave.m_axi
+```
+
+`signal_ex.txt` 里通常会看到这种单端点形式：
+
+```systemverilog
+// External logic interconnect declarations
+logic clk;                                       // to u_child.clk
+
+// External interface interconnect declarations
+link_if bus ();                                  // connect u_child.bus
 ```
 
 ## `unconnect.txt`

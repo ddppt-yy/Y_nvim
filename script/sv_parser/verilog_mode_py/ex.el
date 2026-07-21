@@ -23,7 +23,7 @@
   "Non-nil means report hand-parsed instances even when their module is unresolved.")
 
 (defvar vm-auto-report-write-text-files t
-  "Non-nil means `vm-dump-auto' also writes signal.txt and unconnect.txt.")
+  "Non-nil means `vm-dump-auto' also writes text sidecar reports.")
 
 (defconst vm-auto-report--auto-re
   "\\(/\\*AUTOINST\\((.*?)\\)?\\*/\\|\\.\\*\\)"
@@ -839,6 +839,60 @@
          (vm-auto-report--logic-comment-from-endpoints endpoints))
         (t nil)))
 
+(defun vm-auto-report--record-scope (record)
+  "Return the scope for RECORD as \"inner\" or \"ex\"."
+  (let ((endpoints (vm-auto-report--alist-get 'endpoints (cdr record))))
+    (if (> (length endpoints) 1) "inner" "ex")))
+
+(defun vm-auto-report--record-scope-p (record scope)
+  "Return non-nil if RECORD belongs to SCOPE."
+  (equal (vm-auto-report--record-scope record) scope))
+
+(defun vm-auto-report--find-record (records kind name)
+  "Return the first record in RECORDS matching KIND and NAME."
+  (seq-find (lambda (record)
+              (let ((entry (cdr record)))
+                (and (equal kind (vm-auto-report--alist-get 'kind entry))
+                     (equal name (vm-auto-report--alist-get 'name entry)))))
+            records))
+
+(defun vm-auto-report--skip-item (kind name source expr reason)
+  "Build a skipped connection entry."
+  `((kind . ,kind)
+    (name . ,name)
+    (source . ,source)
+    (expr . ,expr)
+    (reason . ,reason)))
+
+(defun vm-auto-report--skip-scope (item records)
+  "Return the scope for skipped ITEM using RECORDS as reference."
+  (let* ((kind (vm-auto-report--alist-get 'kind item))
+         (name (vm-auto-report--alist-get 'name item))
+         (record (and kind name (vm-auto-report--find-record records kind name))))
+    (if record
+        (vm-auto-report--record-scope record)
+      "ex")))
+
+(defun vm-auto-report--scope-title (scope)
+  "Return a human readable title for SCOPE."
+  (if (equal scope "inner") "Internal" "External"))
+
+(defun vm-auto-report--scope-records (records kind scope)
+  "Return RECORDS filtered by KIND and SCOPE."
+  (seq-filter
+   (lambda (record)
+     (and (equal kind
+                 (vm-auto-report--alist-get 'kind (cdr record)))
+          (vm-auto-report--record-scope-p record scope)))
+   records))
+
+(defun vm-auto-report--scope-skipped (skipped records scope)
+  "Return skipped entries filtered by SCOPE."
+  (seq-filter
+   (lambda (item)
+     (equal scope (vm-auto-report--skip-scope item records)))
+   skipped))
+
 (defun vm-auto-report--expand-dot-star-connections (inst connections)
   "Expand .*-style CONNECTIONS for INST into per-port entries."
   (let* ((submodi (vm-auto-report--lookup-module
@@ -912,9 +966,9 @@
                (type (vm-auto-report--alist-get 'type conn)))
           (cond
            ((and (equal style "dot-star") (equal port "*"))
-            (push `((source . ,source)
-                    (expr . ,expr)
-                    (reason . "dot-star connection could not be expanded"))
+            (push (vm-auto-report--skip-item
+                   nil nil source expr
+                   "dot-star connection could not be expanded")
                   skipped))
            ((or (not expr) (string-empty-p expr))
             nil)
@@ -924,9 +978,9 @@
                   (setq records
                         (vm-auto-report--record-signal
                          name "interface" type nil nil inst conn records))
-                (push `((source . ,source)
-                        (expr . ,expr)
-                        (reason . "complex or unresolved interface expression"))
+                (push (vm-auto-report--skip-item
+                       "interface" name source expr
+                       "complex or unresolved interface expression")
                       skipped))))
            ((member direction '("input" "output" "inout" "interfaced"))
             (let ((sig (vm-auto-report--signal-name-from-expr expr)))
@@ -941,14 +995,14 @@
                          inst
                          conn
                          records))
-                (push `((source . ,source)
-                        (expr . ,expr)
-                        (reason . "complex expression"))
+                (push (vm-auto-report--skip-item
+                       "logic" nil source expr
+                       "complex expression")
                       skipped))))
            (t
-            (push `((source . ,source)
-                    (expr . ,expr)
-                    (reason . "unresolved direction or port definition"))
+            (push (vm-auto-report--skip-item
+                   nil nil source expr
+                   "unresolved direction or port definition")
                   skipped))))))
     (list (nreverse records) (nreverse skipped))))
 
@@ -1030,8 +1084,8 @@
                  (or (vm-auto-report--alist-get 'reason item) ""))))
     (insert "// none\n")))
 
-(defun vm-auto-report-signal-text (report)
-  "Return the signal.txt contents for REPORT."
+(defun vm-auto-report--signal-text-for-scope (report scope)
+  "Return the signal text contents for REPORT and SCOPE."
   (with-temp-buffer
     (insert "// Generated by ex.el\n")
     (insert (format "// Source: %s\n\n"
@@ -1042,18 +1096,33 @@
              (type (vm-auto-report--alist-get 'type module))
              (collected (vm-auto-report--collect-module-signals module))
              (records (nth 0 collected))
-             (skipped (nth 1 collected)))
+             (skipped (nth 1 collected))
+             (scoped-records (append (vm-auto-report--scope-records
+                                      records "logic" scope)
+                                     (vm-auto-report--scope-records
+                                      records "interface" scope)))
+             (scoped-skipped (vm-auto-report--scope-skipped skipped records scope)))
         (insert "///////////////////////////////////////////////////////////////////////////////\n")
         (insert (format "// %s: %s\n" (capitalize (or type "module")) name))
         (insert "///////////////////////////////////////////////////////////////////////////////\n\n")
-        (insert "// Logic interconnect declarations\n")
-        (vm-auto-report--insert-records records "logic")
-        (insert "\n// Interface interconnect declarations\n")
-        (vm-auto-report--insert-records records "interface")
+        (insert (format "// %s logic interconnect declarations\n"
+                        (vm-auto-report--scope-title scope)))
+        (vm-auto-report--insert-records scoped-records "logic")
+        (insert (format "\n// %s interface interconnect declarations\n"
+                        (vm-auto-report--scope-title scope)))
+        (vm-auto-report--insert-records scoped-records "interface")
         (insert "\n// Connections that were not converted to declarations\n")
-        (vm-auto-report--insert-skipped skipped)
+        (vm-auto-report--insert-skipped scoped-skipped)
         (insert "\n")))
     (buffer-string)))
+
+(defun vm-auto-report-signal-inner-text (report)
+  "Return the signal_inner.txt contents for REPORT."
+  (vm-auto-report--signal-text-for-scope report "inner"))
+
+(defun vm-auto-report-signal-ex-text (report)
+  "Return the signal_ex.txt contents for REPORT."
+  (vm-auto-report--signal-text-for-scope report "ex"))
 
 (defun vm-auto-report--format-port-type (port)
   "Return compact type text for an unconnected PORT."
@@ -1116,10 +1185,12 @@
     default-directory))
 
 (defun vm-auto-report-write-text-files (report output)
-  "Write signal.txt and unconnect.txt for REPORT next to OUTPUT."
+  "Write signal_inner.txt, signal_ex.txt and unconnect.txt next to OUTPUT."
   (let ((dir (vm-auto-report-output-directory output)))
-    (with-temp-file (expand-file-name "signal.txt" dir)
-      (insert (vm-auto-report-signal-text report)))
+    (with-temp-file (expand-file-name "signal_inner.txt" dir)
+      (insert (vm-auto-report-signal-inner-text report)))
+    (with-temp-file (expand-file-name "signal_ex.txt" dir)
+      (insert (vm-auto-report-signal-ex-text report)))
     (with-temp-file (expand-file-name "unconnect.txt" dir)
       (insert (vm-auto-report-unconnect-text report)))))
 
