@@ -6,7 +6,7 @@
   (when (and (not (featurep 'verilog-mode))
              local-verilog-mode
              (file-readable-p local-verilog-mode))
-    (load-file local-verilog-mode)))
+    (load local-verilog-mode nil t)))
 
 (require 'verilog-mode)
 (require 'json)
@@ -1314,10 +1314,60 @@ optional list appended to `verilog-library-flags'."
       (vm-auto-report-write-text-files report output))
     json-text))
 
+(defun vm-auto-report-print-signal-text (file scope &optional library-flags)
+  "Print FILE's signal report for SCOPE to stdout.
+SCOPE must be \"ex\" or \"in\".  LIBRARY-FLAGS, when non-nil, is appended to
+`verilog-library-flags'.  This function does not write JSON or sidecar files."
+  (let* ((report (vm-auto-report-file file library-flags))
+         (text (pcase scope
+                 ("ex" (vm-auto-report-signal-ex-text report))
+                 ("in" (vm-auto-report-signal-inner-text report))
+                 (_ (error "Unknown signal text scope: %s" scope)))))
+    (princ text)
+    text))
+
+(defun vm-auto-report--cli-text-mode (args)
+  "Return text-only CLI mode from ARGS, or nil."
+  (let ((has-ex (member "-ex" args))
+        (has-in (member "-in" args)))
+    (when (and has-ex has-in)
+      (error "-ex and -in cannot be used together"))
+    (cond (has-ex "ex")
+          (has-in "in"))))
+
+(defun vm-auto-report--cli-remove-text-mode (args)
+  "Return ARGS with text-only mode flags removed."
+  (seq-remove (lambda (arg)
+                (member arg '("-ex" "-in")))
+              args))
+
+(defun vm-auto-report--cli-option-like-p (arg)
+  "Return non-nil when ARG looks like a verilog library option."
+  (and (stringp arg)
+       (or (string-prefix-p "-" arg)
+           (string-prefix-p "+" arg))))
+
+(defun vm-auto-report--cli-text-library-flags (args mode)
+  "Return library flags from ARGS for text-only MODE.
+When MODE appears after a legacy OUTPUT argument, drop that OUTPUT so text-only
+mode writes no files and does not pass the old output path to verilog-mode."
+  (let ((mode-first (equal (car args) (concat "-" mode)))
+        (flags (vm-auto-report--cli-remove-text-mode args)))
+    (if (and (not mode-first)
+             flags
+             (or (equal (car flags) "-")
+                 (not (vm-auto-report--cli-option-like-p (car flags)))))
+        (cdr flags)
+      flags)))
+
 (defun vm-dump-auto-cli ()
   "CLI entry for `vm-dump-auto'.
 Usage:
   emacs -Q --batch -l ./ex.el -f vm-dump-auto-cli -- top.sv report.json
+
+Text-only signal reports:
+  -- top.sv -ex
+  -- top.sv -in
 
 Remaining arguments after OUTPUT are appended to `verilog-library-flags',
 for example:
@@ -1327,9 +1377,15 @@ for example:
       (setq args (cdr args)))
     (unless args
       (error "Usage: vm-dump-auto-cli -- INPUT [OUTPUT|-] [verilog-library-flags...]"))
-    (let ((input (pop args))
-          (output (pop args)))
-      (vm-dump-auto input output args))))
+    (let* ((input (pop args))
+           (mode (vm-auto-report--cli-text-mode args)))
+      (if mode
+          (vm-auto-report-print-signal-text
+           input
+           mode
+           (vm-auto-report--cli-text-library-flags args mode))
+        (let ((output (pop args)))
+          (vm-dump-auto input output args))))))
 
 (provide 'ex)
 

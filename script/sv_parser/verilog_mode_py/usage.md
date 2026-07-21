@@ -1,6 +1,14 @@
 # ex.el Usage
 
-`ex.el` 是基于 `verilog-mode.el` 的 batch 报告脚本，用来输出输入 Verilog/SystemVerilog 文件中的模块、实例、自动连接、普通实例连接以及未连接端口信息。
+`ex.el` 是基于 `verilog-mode.el` 的 batch 报告脚本，用来输出输入 Verilog/SystemVerilog 文件中的模块、实例、自动连接、普通实例连接、未连接端口以及互联声明信息。
+
+## 功能概览
+
+- 默认模式会生成 JSON、`signal_inner.txt`、`signal_ex.txt` 和 `unconnect.txt`。
+- `signal_inner.txt` 输出 submodule 之间的内部互联声明。
+- `signal_ex.txt` 输出对外连接声明。普通 port 只有 `from` 或只有 `to` 时视为对外；interface 只有一个 `connect` 端点时视为对外。
+- `unconnect.txt` 按 instance 输出未连接的普通 port 和 interface port，包括 `.port()` 空连接和完全省略连接。
+- `-ex` / `-in` 是只打印模式，只在终端输出对应 signal report，不写任何文件。
 
 ## 基本用法
 
@@ -15,6 +23,24 @@ emacs -Q --batch -l ./ex.el -f vm-dump-auto-cli -- top.sv auto_report.json -y rt
 ```
 
 剩余参数会追加到 `verilog-library-flags`，用于解析 submodule 的 file path 和端口定义。
+
+只打印对外连接声明，不写任何输出文件：
+
+```sh
+emacs -Q --batch -l ./ex.el -f vm-dump-auto-cli -- top.sv -ex
+```
+
+只打印内部互联声明，不写任何输出文件：
+
+```sh
+emacs -Q --batch -l ./ex.el -f vm-dump-auto-cli -- top.sv -in
+```
+
+`-ex` / `-in` 模式下不会写 JSON、`signal_inner.txt`、`signal_ex.txt` 或 `unconnect.txt`。需要 library path 时，继续把 `-y`、`+libext+` 等参数放在后面：
+
+```sh
+emacs -Q --batch -l ./ex.el -f vm-dump-auto-cli -- top.sv -ex -y rtl +libext+.v+.sv
+```
 
 ## 输出文件
 
