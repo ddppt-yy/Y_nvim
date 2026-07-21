@@ -771,51 +771,61 @@
   "Return ENDPOINTS in source appearance order."
   (nreverse (copy-sequence endpoints)))
 
+(defun vm-auto-report--logic-endpoint-groups (endpoints)
+  "Return (drivers loads ambiguous) for logic ENDPOINTS."
+  (let ((ordered (vm-auto-report--ordered-endpoints endpoints))
+        drivers loads ambiguous)
+    (dolist (endpoint ordered)
+      (pcase (vm-auto-report--alist-get 'direction endpoint)
+        ("output"
+         (push endpoint drivers))
+        ("input"
+         (push endpoint loads))
+        ("inout"
+         (push endpoint ambiguous))
+        (_
+         (push endpoint ambiguous))))
+    (list (nreverse drivers)
+          (nreverse loads)
+          (nreverse ambiguous))))
+
 (defun vm-auto-report--logic-comment-from-endpoints (endpoints)
   "Return relation text for logic ENDPOINTS."
   (when endpoints
-    (let* ((ordered (vm-auto-report--ordered-endpoints endpoints))
-           (drivers nil)
-           (loads nil)
-           (ambiguous nil))
-      (dolist (endpoint ordered)
-        (pcase (vm-auto-report--alist-get 'direction endpoint)
-          ("output"
-           (push endpoint drivers))
-          ("input"
-           (push endpoint loads))
-          ("inout"
-           (push endpoint ambiguous))
-          (_
-           (push endpoint ambiguous))))
-      (let ((driver-labels (mapcar #'vm-auto-report--endpoint-label (nreverse drivers)))
-            (load-labels (mapcar #'vm-auto-report--endpoint-label (nreverse loads)))
-            (other-labels (mapcar #'vm-auto-report--endpoint-label (nreverse ambiguous))))
-        (cond
-         ((and (null load-labels) (null other-labels) (= (length driver-labels) 1))
-          (format "from %s" (car driver-labels)))
-         ((and (null driver-labels) (null other-labels) (= (length load-labels) 1))
-          (format "to %s" (car load-labels)))
-         ((and (= (length driver-labels) 1) load-labels (null other-labels))
-          (format "from %s to %s"
-                  (car driver-labels)
-                  (mapconcat #'identity load-labels ", ")))
-         ((and (= (length driver-labels) 1) (null load-labels) (= (length other-labels) 1))
-         (format "connect %s and %s" (car driver-labels) (car other-labels)))
-         ((> (length ordered) 1)
-          (format "connect %s"
-                  (mapconcat #'identity
-                             (append driver-labels load-labels other-labels)
-                             ", ")))
-         ((= (length driver-labels) 1)
-          (format "from %s" (car driver-labels)))
-         ((= (length load-labels) 1)
-          (format "to %s" (car load-labels)))
-         (t
-          (format "connect %s"
-                  (mapconcat #'identity
-                             (append driver-labels load-labels other-labels)
-                             ", "))))))))
+    (let* ((groups (vm-auto-report--logic-endpoint-groups endpoints))
+           (drivers (nth 0 groups))
+           (loads (nth 1 groups))
+           (ambiguous (nth 2 groups))
+           (driver-labels (mapcar #'vm-auto-report--endpoint-label drivers))
+           (load-labels (mapcar #'vm-auto-report--endpoint-label loads))
+           (other-labels (mapcar #'vm-auto-report--endpoint-label ambiguous)))
+      (cond
+       ((and driver-labels (null load-labels) (null other-labels))
+        (format "from %s" (mapconcat #'identity driver-labels ", ")))
+       ((and load-labels (null driver-labels) (null other-labels))
+        (format "to %s" (mapconcat #'identity load-labels ", ")))
+       ((and driver-labels load-labels (null other-labels))
+        (format "from %s to %s"
+                (mapconcat #'identity driver-labels ", ")
+                (mapconcat #'identity load-labels ", ")))
+       ((and (= (length driver-labels) 1)
+             (null load-labels)
+             (= (length other-labels) 1))
+        (format "connect %s and %s" (car driver-labels) (car other-labels)))
+       ((> (length endpoints) 1)
+        (format "connect %s"
+                (mapconcat #'identity
+                           (append driver-labels load-labels other-labels)
+                           ", ")))
+       ((= (length driver-labels) 1)
+        (format "from %s" (car driver-labels)))
+       ((= (length load-labels) 1)
+        (format "to %s" (car load-labels)))
+       (t
+        (format "connect %s"
+                (mapconcat #'identity
+                           (append driver-labels load-labels other-labels)
+                           ", ")))))))
 
 (defun vm-auto-report--interface-comment-from-endpoints (endpoints)
   "Return relation text for interface ENDPOINTS."
@@ -840,10 +850,31 @@
          (vm-auto-report--logic-comment-from-endpoints endpoints))
         (t nil)))
 
+(defun vm-auto-report--logic-external-p (endpoints)
+  "Return non-nil when logic ENDPOINTS are external-facing."
+  (let* ((groups (vm-auto-report--logic-endpoint-groups endpoints))
+         (drivers (nth 0 groups))
+         (loads (nth 1 groups))
+         (ambiguous (nth 2 groups)))
+    (cond
+     ((or drivers loads)
+      (and (not (and drivers loads))
+           (null ambiguous)))
+     (t
+      (= (length endpoints) 1)))))
+
 (defun vm-auto-report--record-scope (record)
   "Return the scope for RECORD as \"inner\" or \"ex\"."
-  (let ((endpoints (vm-auto-report--alist-get 'endpoints (cdr record))))
-    (if (> (length endpoints) 1) "inner" "ex")))
+  (let* ((entry (cdr record))
+         (kind (vm-auto-report--alist-get 'kind entry))
+         (endpoints (vm-auto-report--alist-get 'endpoints entry)))
+    (cond
+     ((equal kind "logic")
+      (if (vm-auto-report--logic-external-p endpoints) "ex" "inner"))
+     ((equal kind "interface")
+      (if (> (length endpoints) 1) "inner" "ex"))
+     (t
+      "ex"))))
 
 (defun vm-auto-report--record-scope-p (record scope)
   "Return non-nil if RECORD belongs to SCOPE."
@@ -905,11 +936,21 @@
 
 (defun vm-auto-report--external-direction (record)
   "Return external port direction text for RECORD."
-  (let* ((endpoint (vm-auto-report--record-single-endpoint record))
+  (let* ((endpoints (vm-auto-report--record-endpoints record))
+         (groups (vm-auto-report--logic-endpoint-groups endpoints))
+         (drivers (nth 0 groups))
+         (loads (nth 1 groups))
+         (ambiguous (nth 2 groups))
+         (endpoint (and (= (length endpoints) 1) (car endpoints)))
          (direction (and endpoint
                          (vm-auto-report--alist-get 'direction endpoint))))
-    (and (member direction '("input" "output" "inout"))
-         direction)))
+    (cond
+     ((and drivers (null loads) (null ambiguous))
+      "output")
+     ((and loads (null drivers) (null ambiguous))
+      "input")
+     ((and endpoint (member direction '("input" "output" "inout")))
+      direction))))
 
 (defun vm-auto-report--external-modport (record)
   "Return external interface modport text for RECORD."
