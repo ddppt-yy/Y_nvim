@@ -18,6 +18,9 @@
 (defvar vm-auto-report-pretty-json t
   "Non-nil means `vm-dump-auto' writes formatted JSON.")
 
+(defvar vm-auto-report-include-unresolved-instances t
+  "Non-nil means report hand-parsed instances even when their module is unresolved.")
+
 (defconst vm-auto-report--auto-re
   "\\(/\\*AUTOINST\\((.*?)\\)?\\*/\\|\\.\\*\\)"
   "Regexp matching AUTOINST markers that verilog-mode expands.")
@@ -222,6 +225,244 @@
                    items))))))))
     (vm-auto-report--vector (nreverse items))))
 
+(defun vm-auto-report--read-identifier ()
+  "Read a Verilog identifier at point and move past it, or return nil."
+  (when (looking-at "\\([`a-zA-Z_$][a-zA-Z0-9_$]*\\|\\\\[^ \t\n\f]+\\s-\\)")
+    (let ((identifier (match-string-no-properties 1)))
+      (goto-char (match-end 0))
+      identifier)))
+
+(defun vm-auto-report--skip-line-space ()
+  "Skip horizontal whitespace only."
+  (skip-chars-forward " \t\f"))
+
+(defun vm-auto-report--skip-head-p (name)
+  "Return non-nil if NAME is not an instance cell type."
+  (or (not name)
+      (member name verilog-keywords)
+      (member name verilog-gate-keywords)
+      (member name
+              '("assign" "always" "always_comb" "always_ff" "always_latch"
+                "begin" "case" "casex" "casez" "class" "clocking"
+                "covergroup" "else" "end" "endcase" "endclass"
+                "endclocking" "endfunction" "endgenerate" "endgroup"
+                "endinterface" "endmodule" "endpackage" "endprogram"
+                "endproperty" "endtask" "final" "for" "forever" "fork"
+                "function" "generate" "genvar" "if" "initial" "input"
+                "inout" "interface" "join" "join_any" "join_none"
+                "localparam" "logic" "module" "output" "package"
+                "parameter" "program" "property" "reg" "task" "typedef"
+                "wire"))))
+
+(defun vm-auto-report--skip-parameter-list ()
+  "Skip an optional #(...) parameter override at point."
+  (verilog-forward-syntactic-ws)
+  (when (looking-at "#")
+    (forward-char 1)
+    (verilog-forward-syntactic-ws)
+    (when (looking-at "(")
+      (condition-case nil
+          (verilog-forward-sexp-ign-cmt 1)
+        (error nil)))))
+
+(defun vm-auto-report--skip-instance-array ()
+  "Skip optional instance array dimensions."
+  (verilog-forward-syntactic-ws)
+  (while (looking-at "\\[")
+    (condition-case nil
+        (verilog-forward-sexp-ign-cmt 1)
+      (error (forward-char 1)))
+    (verilog-forward-syntactic-ws)))
+
+(defun vm-auto-report--sexp-end-at-point ()
+  "Return the balanced expression end at point, or nil."
+  (condition-case nil
+      (save-excursion
+        (verilog-forward-sexp-ign-cmt 1)
+        (point))
+    (error nil)))
+
+(defun vm-auto-report--instance-source (open close)
+  "Return how an instance pin list between OPEN and CLOSE was generated."
+  (let ((text (buffer-substring-no-properties open close)))
+    (cond ((string-match-p "AUTOINST" text) "autoinst")
+          ((string-match-p "\\.\\*" text) "dot-star")
+          (t "manual"))))
+
+(defun vm-auto-report--connection-end (limit)
+  "Move to the next top-level comma or LIMIT."
+  (let ((done nil))
+    (while (and (not done) (< (point) limit))
+      (cond ((looking-at "[ \t\n\f]+")
+             (goto-char (match-end 0)))
+            ((looking-at "/[/*]")
+             (condition-case nil
+                 (forward-comment 1)
+               (error (forward-char 1))))
+            ((looking-at "[({\\[]")
+             (condition-case nil
+                 (verilog-forward-sexp-ign-cmt 1)
+               (error (forward-char 1))))
+            ((looking-at ",")
+             (setq done t))
+            (t
+             (forward-char 1)))))
+  (point))
+
+(defun vm-auto-report--read-named-connection (limit submod-decls)
+  "Read a named port connection at point, or return nil."
+  (when (looking-at "\\.\\s-*\\(\\*\\|[a-zA-Z_$][a-zA-Z0-9_$]*\\|\\\\[^ \t\n\f]+\\s-\\)")
+    (let ((port (match-string-no-properties 1))
+          expr)
+      (goto-char (match-end 0))
+      (verilog-forward-syntactic-ws)
+      (cond ((equal port "*")
+             `((style . "dot-star")
+               (port . "*")
+               (expr . "*")))
+            ((looking-at "(")
+             (let ((start (1+ (point)))
+                   (end (vm-auto-report--sexp-end-at-point)))
+               (when (and end (<= end limit))
+                 (goto-char end)
+                 (setq expr
+                       (string-trim
+                        (buffer-substring-no-properties start (1- end))))
+                 (append `((style . "named"))
+                         (vm-auto-report--connection nil port expr submod-decls)))))
+            (t
+             (setq expr port)
+             (append `((style . "dot-name"))
+                     (vm-auto-report--connection nil port expr submod-decls)))))))
+
+(defun vm-auto-report--read-ordered-connection (index limit)
+  "Read an ordered port connection at point."
+  (let ((start (point))
+        end expr)
+    (setq end (vm-auto-report--connection-end limit))
+    (setq expr (string-trim (buffer-substring-no-properties start end)))
+    (unless (string-empty-p expr)
+      `((style . "ordered")
+        (index . ,index)
+        (port . nil)
+        (expr . ,expr)))))
+
+(defun vm-auto-report--instance-connections (open close submod-decls)
+  "Return parsed connections in the instance port list from OPEN to CLOSE."
+  (let ((limit (1- close))
+        (index 0)
+        connections)
+    (save-excursion
+      (goto-char (1+ open))
+      (while (< (point) limit)
+        (verilog-forward-syntactic-ws)
+        (when (< (point) limit)
+          (let ((conn (if (looking-at "\\.")
+                          (vm-auto-report--read-named-connection limit submod-decls)
+                        (vm-auto-report--read-ordered-connection index limit))))
+            (when conn
+              (push conn connections))
+            (setq index (1+ index))
+            (verilog-forward-syntactic-ws)
+            (when (looking-at ",")
+              (forward-char 1))))))
+    (vm-auto-report--vector (nreverse connections))))
+
+(defun vm-auto-report--instance-terminator-ok-p (inst-end module-end)
+  "Return non-nil if INST-END looks like an instance item terminator."
+  (save-excursion
+    (goto-char inst-end)
+    (verilog-forward-syntactic-ws)
+    (or (>= (point) module-end)
+        (looking-at "[,;]"))))
+
+(defun vm-auto-report--instance-item (module inst inst-start open close)
+  "Return a JSON-ready normal instance entry."
+  (let* ((submodi (vm-auto-report--lookup-module module))
+         (subdecls (and submodi
+                        (condition-case nil
+                            (verilog-modi-get-decls submodi)
+                          (error nil)))))
+    (when (or submodi vm-auto-report-include-unresolved-instances)
+      `((module . ,module)
+        (instance . ,inst)
+        (file . ,(vm-auto-report--module-file submodi))
+        (definition_type . ,(and submodi (verilog-modi-get-type submodi)))
+        (source . ,(vm-auto-report--instance-source open close))
+        (location . ,(vm-auto-report--location inst-start))
+        (connections . ,(vm-auto-report--instance-connections open close subdecls))))))
+
+(defun vm-auto-report--parse-instance-chain-at-line (module-end)
+  "Parse a normal instance declaration beginning on the current line."
+  (catch 'vm-auto-report--return
+    (save-excursion
+      (let (first cell items done)
+        (beginning-of-line)
+        (vm-auto-report--skip-line-space)
+        (when (or (>= (point) module-end)
+                  (looking-at "\\($\\|//\\|/\\*\\|`\\)"))
+          (throw 'vm-auto-report--return nil))
+        (setq first (vm-auto-report--read-identifier))
+        (unless first
+          (throw 'vm-auto-report--return nil))
+        (vm-auto-report--skip-line-space)
+        (setq cell
+              (if (looking-at ":")
+                  (progn
+                    (forward-char 1)
+                    (verilog-forward-syntactic-ws)
+                    (vm-auto-report--read-identifier))
+                first))
+        (when (vm-auto-report--skip-head-p cell)
+          (throw 'vm-auto-report--return nil))
+        (vm-auto-report--skip-parameter-list)
+        (while (not done)
+          (verilog-forward-syntactic-ws)
+          (let ((inst-start (point))
+                (inst (vm-auto-report--read-identifier))
+                open close item)
+            (cond
+             ((or (not inst)
+                  (vm-auto-report--skip-head-p inst))
+              (setq done t))
+             (t
+              (vm-auto-report--skip-instance-array)
+              (setq open (point))
+              (setq close (and (looking-at "(")
+                               (vm-auto-report--sexp-end-at-point)))
+              (cond
+               ((not (and close
+                          (<= close module-end)
+                          (vm-auto-report--instance-terminator-ok-p
+                           close module-end)))
+                (setq done t))
+               (t
+                (setq item (vm-auto-report--instance-item
+                            cell inst inst-start open close))
+                (when item
+                  (push item items))
+                (goto-char close)
+                (verilog-forward-syntactic-ws)
+                (unless (looking-at ",")
+                  (setq done t))
+                (when (looking-at ",")
+                  (forward-char 1))))))))
+        (nreverse items)))))
+
+(defun vm-auto-report--all-instantiations (module-end)
+  "Return all normal instance declarations found up to MODULE-END."
+  (let (items)
+    (save-excursion
+      (verilog-beg-of-defun-quick)
+      (while (< (point) module-end)
+        (unless (verilog-inside-comment-or-string-p)
+          (setq items
+                (append (nreverse
+                         (vm-auto-report--parse-instance-chain-at-line module-end))
+                        items)))
+        (forward-line 1)))
+    (vm-auto-report--vector (nreverse items))))
+
 (defun vm-auto-report--modules ()
   "Return all design units in the current buffer."
   (let (modules)
@@ -246,7 +487,8 @@
                      (type . ,type)
                      (location . ,(vm-auto-report--location pt))
                      (auto_signals . ,(vm-auto-report--auto-signals modi))
-                     (submodules . ,(vm-auto-report--auto-instantiations end)))
+                     (submodules . ,(vm-auto-report--auto-instantiations end))
+                     (instances . ,(vm-auto-report--all-instantiations end)))
                    modules))
                 (goto-char end)))))))
     (vm-auto-report--vector (nreverse modules))))
