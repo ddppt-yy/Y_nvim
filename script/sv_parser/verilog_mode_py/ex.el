@@ -10,6 +10,7 @@
 
 (require 'verilog-mode)
 (require 'json)
+(require 'seq)
 (require 'subr-x)
 
 (defvar vm-auto-report-run-auto t
@@ -20,6 +21,9 @@
 
 (defvar vm-auto-report-include-unresolved-instances t
   "Non-nil means report hand-parsed instances even when their module is unresolved.")
+
+(defvar vm-auto-report-write-text-files t
+  "Non-nil means `vm-dump-auto' also writes signal.txt and unconnect.txt.")
 
 (defconst vm-auto-report--auto-re
   "\\(/\\*AUTOINST\\((.*?)\\)?\\*/\\|\\.\\*\\)"
@@ -134,6 +138,12 @@
   "Return KEY from ALIST using `eq' for key comparison."
   (cdr (assq key alist)))
 
+(defun vm-auto-report--items (value)
+  "Return VALUE as a list, accepting vectors used for JSON arrays."
+  (cond ((vectorp value) (append value nil))
+        ((listp value) value)
+        (t nil)))
+
 (defun vm-auto-report--port-entry (direction sig reason)
   "Return a JSON-ready unconnected port entry for SIG."
   `((direction . ,direction)
@@ -235,6 +245,53 @@
               (push port empty)
             (push port connected)))))
     (list connected empty)))
+
+(defun vm-auto-report--wildcard-dot-star-p (conn)
+  "Return non-nil when CONN is the raw .* wildcard entry."
+  (and (equal (vm-auto-report--alist-get 'style conn) "dot-star")
+       (equal (vm-auto-report--alist-get 'port conn) "*")))
+
+(defun vm-auto-report--connection-from-port-entry (entry)
+  "Return a dot-star connection entry from a declared port ENTRY."
+  (let ((name (nth 0 entry))
+        (direction (nth 1 entry))
+        (sig (nth 2 entry)))
+    `((style . "dot-star")
+      (direction . ,direction)
+      (port . ,name)
+      (expr . ,name)
+      (bits . ,(vm-auto-report--maybe-string (verilog-sig-bits sig)))
+      (multidim . ,(vm-auto-report--maybe-string
+                     (verilog-sig-multidim-string sig)))
+      (memory . ,(vm-auto-report--maybe-string (verilog-sig-memory sig)))
+      (signed . ,(and (verilog-sig-signed sig) t))
+      (type . ,(vm-auto-report--maybe-string (verilog-sig-type sig)))
+      (modport . ,(vm-auto-report--maybe-string
+                    (verilog-sig-modport sig))))))
+
+(defun vm-auto-report--expand-dot-star-with-decls
+    (connections submod-decls port-order)
+  "Expand raw .*-style CONNECTIONS using SUBMOD-DECLS and PORT-ORDER."
+  (let* ((items (vm-auto-report--items connections))
+         (state (vm-auto-report--connection-port-state items))
+         (mentioned (append (nth 0 state) (nth 1 state)))
+         explicit has-dot-star)
+    (dolist (conn items)
+      (if (vm-auto-report--wildcard-dot-star-p conn)
+          (setq has-dot-star t)
+        (push conn explicit)))
+    (if (not has-dot-star)
+        items
+      (let (implicit)
+        (if submod-decls
+            (progn
+              (dolist (entry (vm-auto-report--ordered-decl-ports
+                              submod-decls port-order))
+                (unless (member (nth 0 entry) mentioned)
+                  (push (vm-auto-report--connection-from-port-entry entry)
+                        implicit)))
+              (append (nreverse explicit) (nreverse implicit)))
+          items)))))
 
 (defun vm-auto-report--unconnected-ports (submod-decls connections port-order)
   "Return ports from SUBMOD-DECLS not connected by CONNECTIONS."
@@ -516,8 +573,10 @@
                             (verilog-modi-get-decls submodi)
                           (error nil))))
          (port-order (vm-auto-report--port-order-from-modi submodi))
-         (connections (vm-auto-report--instance-connections
-                       open close subdecls port-order)))
+         (raw-connections (vm-auto-report--instance-connections
+                           open close subdecls port-order))
+         (connections (vm-auto-report--expand-dot-star-with-decls
+                       raw-connections subdecls port-order)))
     (when (or submodi vm-auto-report-include-unresolved-instances)
       `((module . ,module)
         (instance . ,inst)
@@ -525,7 +584,7 @@
         (definition_type . ,(and submodi (verilog-modi-get-type submodi)))
         (source . ,(vm-auto-report--instance-source open close))
         (location . ,(vm-auto-report--location inst-start))
-        (connections . ,connections)
+        (connections . ,(vm-auto-report--vector connections))
         (unconnected_ports . ,(vm-auto-report--unconnected-ports
                                subdecls connections port-order))))))
 
@@ -630,6 +689,330 @@
                 (goto-char end)))))))
     (vm-auto-report--vector (nreverse modules))))
 
+(defun vm-auto-report--signal-name-from-expr (expr)
+  "Return (name bits) from a simple signal expression EXPR."
+  (when (and expr
+             (string-match
+              "\\`\\s-*\\([a-zA-Z_$][a-zA-Z0-9_$]*\\)\\s-*\\(\\[[^]]+\\]\\)?\\s-*\\'"
+              expr))
+    (list (match-string 1 expr)
+          (match-string 2 expr))))
+
+(defun vm-auto-report--interface-name-from-expr (expr)
+  "Return the base interface instance name from EXPR."
+  (when (and expr
+             (string-match
+              "\\`\\s-*\\([a-zA-Z_$][a-zA-Z0-9_$]*\\)\\(?:\\.[a-zA-Z_$][a-zA-Z0-9_$]*\\)?\\s-*\\'"
+              expr))
+    (match-string 1 expr)))
+
+(defun vm-auto-report--numeric-range (bits)
+  "Return (high low) when BITS is a numeric range or bit select."
+  (cond ((and bits (string-match "\\`\\[\\([0-9]+\\):\\([0-9]+\\)\\]\\'" bits))
+         (list (string-to-number (match-string 1 bits))
+               (string-to-number (match-string 2 bits))))
+        ((and bits (string-match "\\`\\[\\([0-9]+\\)\\]\\'" bits))
+         (let ((bit (string-to-number (match-string 1 bits))))
+           (list bit bit)))))
+
+(defun vm-auto-report--merge-bits (old new)
+  "Merge two bit ranges OLD and NEW, best effort."
+  (cond ((not old) new)
+        ((not new) old)
+        ((equal old new) old)
+        (t
+         (let ((old-range (vm-auto-report--numeric-range old))
+               (new-range (vm-auto-report--numeric-range new)))
+           (if (and old-range new-range)
+               (format "[%d:%d]"
+                       (max (nth 0 old-range) (nth 0 new-range))
+                       (min (nth 1 old-range) (nth 1 new-range)))
+             old)))))
+
+(defun vm-auto-report--add-unique (item items)
+  "Add ITEM to ITEMS if not already present."
+  (if (member item items) items (cons item items)))
+
+(defun vm-auto-report--signal-source (inst conn)
+  "Return a compact source string for INST/CONN."
+  (let ((module (vm-auto-report--alist-get 'module inst))
+        (instance (vm-auto-report--alist-get 'instance inst))
+        (port (vm-auto-report--alist-get 'port conn))
+        (index (vm-auto-report--alist-get 'index conn)))
+    (if port
+        (format "%s %s.%s" module instance port)
+      (format "%s %s[%s]" module instance (or index "?")))))
+
+(defun vm-auto-report--expand-dot-star-connections (inst connections)
+  "Expand .*-style CONNECTIONS for INST into per-port entries."
+  (let* ((submodi (vm-auto-report--lookup-module
+                   (vm-auto-report--alist-get 'module inst)))
+         (subdecls (and submodi
+                        (condition-case nil
+                            (verilog-modi-get-decls submodi)
+                          (error nil))))
+         (port-order (vm-auto-report--port-order-from-modi submodi)))
+    (vm-auto-report--expand-dot-star-with-decls
+     connections subdecls port-order)))
+
+(defun vm-auto-report--record-signal (name kind type bits signed source records)
+  "Add or update a signal declaration record."
+  (let ((record (assoc name records)))
+    (if record
+        (let ((entry (cdr record)))
+          (setcdr (assq 'bits entry)
+                  (vm-auto-report--merge-bits
+                   (vm-auto-report--alist-get 'bits entry)
+                   bits))
+          (setcdr (assq 'signed entry)
+                  (or (vm-auto-report--alist-get 'signed entry) signed))
+          (setcdr (assq 'sources entry)
+                  (vm-auto-report--add-unique
+                   source
+                   (vm-auto-report--alist-get 'sources entry)))
+          (when (and type
+                     (vm-auto-report--alist-get 'type entry)
+                     (not (equal type (vm-auto-report--alist-get 'type entry))))
+            (setcdr (assq 'notes entry)
+                    (vm-auto-report--add-unique
+                     (format "type conflict: %s vs %s"
+                             (vm-auto-report--alist-get 'type entry)
+                             type)
+                     (vm-auto-report--alist-get 'notes entry))))
+          records)
+      (cons
+       (cons name
+             `((name . ,name)
+               (kind . ,kind)
+               (type . ,type)
+               (bits . ,bits)
+               (signed . ,signed)
+               (sources . (,source))
+               (notes . nil)))
+       records))))
+
+(defun vm-auto-report--collect-module-signals (module)
+  "Collect printable signal declarations for MODULE."
+  (let (records skipped)
+    (dolist (inst (vm-auto-report--items
+                   (vm-auto-report--alist-get 'instances module)))
+      (dolist (conn (vm-auto-report--expand-dot-star-connections
+                     inst
+                     (vm-auto-report--alist-get 'connections inst)))
+        (let* ((direction (vm-auto-report--alist-get 'direction conn))
+               (expr (vm-auto-report--alist-get 'expr conn))
+               (port (vm-auto-report--alist-get 'port conn))
+               (style (vm-auto-report--alist-get 'style conn))
+               (source (vm-auto-report--signal-source inst conn))
+               (bits (vm-auto-report--alist-get 'bits conn))
+               (signed (vm-auto-report--alist-get 'signed conn))
+               (type (vm-auto-report--alist-get 'type conn)))
+          (cond
+           ((and (equal style "dot-star") (equal port "*"))
+            (push `((source . ,source)
+                    (expr . ,expr)
+                    (reason . "dot-star connection could not be expanded"))
+                  skipped))
+           ((or (not expr) (string-empty-p expr))
+            nil)
+           ((equal direction "interface")
+            (let ((name (vm-auto-report--interface-name-from-expr expr)))
+              (if (and name type)
+                  (setq records
+                        (vm-auto-report--record-signal
+                         name "interface" type nil nil source records))
+                (push `((source . ,source)
+                        (expr . ,expr)
+                        (reason . "complex or unresolved interface expression"))
+                      skipped))))
+           ((member direction '("input" "output" "inout" "interfaced"))
+            (let ((sig (vm-auto-report--signal-name-from-expr expr)))
+              (if sig
+                  (setq records
+                        (vm-auto-report--record-signal
+                         (nth 0 sig)
+                         "logic"
+                         "logic"
+                         (or (nth 1 sig) bits)
+                         signed
+                         source
+                         records))
+                (push `((source . ,source)
+                        (expr . ,expr)
+                        (reason . "complex expression"))
+                      skipped))))
+           (t
+            (push `((source . ,source)
+                    (expr . ,expr)
+                    (reason . "unresolved direction or port definition"))
+                  skipped))))))
+    (list (nreverse records) (nreverse skipped))))
+
+(defun vm-auto-report--decl-type-string (record)
+  "Return declaration type text for RECORD."
+  (let* ((entry (cdr record))
+         (kind (vm-auto-report--alist-get 'kind entry))
+         (type (vm-auto-report--alist-get 'type entry))
+         (bits (vm-auto-report--alist-get 'bits entry))
+         (signed (vm-auto-report--alist-get 'signed entry)))
+    (cond ((equal kind "interface")
+           (or type "interface"))
+          (t
+           (string-join
+            (delq nil
+                  (list "logic"
+                        (and signed "signed")
+                        bits))
+            " ")))))
+
+(defun vm-auto-report--format-comment (record)
+  "Return source comment text for RECORD."
+  (let* ((entry (cdr record))
+         (sources (sort (copy-sequence
+                         (vm-auto-report--alist-get 'sources entry))
+                        #'string<))
+         (notes (sort (copy-sequence
+                       (vm-auto-report--alist-get 'notes entry))
+                      #'string<))
+         (text (mapconcat #'identity sources ", ")))
+    (when notes
+      (setq text (concat text "; " (mapconcat #'identity notes ", "))))
+    text))
+
+(defun vm-auto-report--pad-right (text width)
+  "Return TEXT padded with spaces to WIDTH."
+  (concat text (make-string (max 0 (- width (length text))) ?\s)))
+
+(defun vm-auto-report--insert-records (records kind)
+  "Insert declaration RECORDS matching KIND."
+  (let* ((filtered (sort
+                    (seq-filter
+                     (lambda (record)
+                       (equal kind
+                              (vm-auto-report--alist-get 'kind (cdr record))))
+                     records)
+                    (lambda (a b) (string< (car a) (car b)))))
+         (type-width 1))
+    (dolist (record filtered)
+      (setq type-width
+            (max type-width (length (vm-auto-report--decl-type-string record)))))
+    (if filtered
+        (dolist (record filtered)
+          (let* ((entry (cdr record))
+                 (type-text (vm-auto-report--decl-type-string record))
+                 (type-padded (vm-auto-report--pad-right type-text type-width))
+                 (name (vm-auto-report--alist-get 'name entry))
+                 (comment (vm-auto-report--format-comment record))
+                 (decl (if (equal kind "interface")
+                           (format "%s %s ();" type-padded name)
+                         (format "%s %s;" type-padded name))))
+            (insert (format "%-48s // %s\n" decl comment))))
+      (insert "// none\n"))))
+
+(defun vm-auto-report--insert-skipped (skipped)
+  "Insert skipped declaration expressions."
+  (if skipped
+      (dolist (item skipped)
+        (insert
+         (format "// %-32s expr=%S reason=%s\n"
+                 (or (vm-auto-report--alist-get 'source item) "")
+                 (or (vm-auto-report--alist-get 'expr item) "")
+                 (or (vm-auto-report--alist-get 'reason item) ""))))
+    (insert "// none\n")))
+
+(defun vm-auto-report-signal-text (report)
+  "Return the signal.txt contents for REPORT."
+  (with-temp-buffer
+    (insert "// Generated by ex.el\n")
+    (insert (format "// Source: %s\n\n"
+                    (or (vm-auto-report--alist-get 'source_file report) "")))
+    (dolist (module (vm-auto-report--items
+                     (vm-auto-report--alist-get 'modules report)))
+      (let* ((name (vm-auto-report--alist-get 'name module))
+             (type (vm-auto-report--alist-get 'type module))
+             (collected (vm-auto-report--collect-module-signals module))
+             (records (nth 0 collected))
+             (skipped (nth 1 collected)))
+        (insert "///////////////////////////////////////////////////////////////////////////////\n")
+        (insert (format "// %s: %s\n" (capitalize (or type "module")) name))
+        (insert "///////////////////////////////////////////////////////////////////////////////\n\n")
+        (insert "// Logic interconnect declarations\n")
+        (vm-auto-report--insert-records records "logic")
+        (insert "\n// Interface interconnect declarations\n")
+        (vm-auto-report--insert-records records "interface")
+        (insert "\n// Connections that were not converted to declarations\n")
+        (vm-auto-report--insert-skipped skipped)
+        (insert "\n")))
+    (buffer-string)))
+
+(defun vm-auto-report--format-port-type (port)
+  "Return compact type text for an unconnected PORT."
+  (string-join
+   (delq nil
+         (list (vm-auto-report--alist-get 'type port)
+               (and (vm-auto-report--alist-get 'signed port) "signed")
+               (vm-auto-report--alist-get 'bits port)
+               (vm-auto-report--alist-get 'multidim port)
+               (vm-auto-report--alist-get 'memory port)
+               (let ((modport (vm-auto-report--alist-get 'modport port)))
+                 (and modport (concat "." modport)))))
+   " "))
+
+(defun vm-auto-report-unconnect-text (report)
+  "Return the unconnect.txt contents for REPORT."
+  (with-temp-buffer
+    (let ((found nil))
+      (insert "// Generated by ex.el\n")
+      (insert (format "// Source: %s\n\n"
+                      (or (vm-auto-report--alist-get 'source_file report) "")))
+      (dolist (module (vm-auto-report--items
+                       (vm-auto-report--alist-get 'modules report)))
+        (let ((module-name (vm-auto-report--alist-get 'name module))
+              (module-had nil))
+          (dolist (inst (vm-auto-report--items
+                         (vm-auto-report--alist-get 'instances module)))
+            (let ((ports (vm-auto-report--items
+                          (vm-auto-report--alist-get 'unconnected_ports inst))))
+              (when ports
+                (setq found t
+                      module-had t)
+                (insert (format "Module   : %s\n" module-name))
+                (insert (format "Instance : %s %s\n"
+                                (or (vm-auto-report--alist-get 'module inst) "")
+                                (or (vm-auto-report--alist-get 'instance inst) "")))
+                (insert (format "File     : %s\n"
+                                (or (vm-auto-report--alist-get 'file inst) "UNRESOLVED")))
+                (insert (format "Source   : %s\n"
+                                (or (vm-auto-report--alist-get 'source inst) "")))
+                (insert "Unconnected ports:\n")
+                (dolist (port ports)
+                  (insert
+                   (format "  %-10s %-24s %-8s %s\n"
+                           (or (vm-auto-report--alist-get 'direction port) "")
+                           (or (vm-auto-report--alist-get 'port port) "")
+                           (or (vm-auto-report--alist-get 'reason port) "")
+                           (vm-auto-report--format-port-type port))))
+                (insert "\n"))))
+          (when module-had
+            (insert "\n"))))
+      (unless found
+        (insert "No unconnected ports found.\n")))
+    (buffer-string)))
+
+(defun vm-auto-report-output-directory (output)
+  "Return the output directory for sidecar text files."
+  (if (and output (not (equal output "-")))
+      (file-name-directory (expand-file-name output))
+    default-directory))
+
+(defun vm-auto-report-write-text-files (report output)
+  "Write signal.txt and unconnect.txt for REPORT next to OUTPUT."
+  (let ((dir (vm-auto-report-output-directory output)))
+    (with-temp-file (expand-file-name "signal.txt" dir)
+      (insert (vm-auto-report-signal-text report)))
+    (with-temp-file (expand-file-name "unconnect.txt" dir)
+      (insert (vm-auto-report-unconnect-text report)))))
+
 (defun vm-auto-report--append-extra-flags (flags)
   "Append extra verilog library FLAGS to the current buffer."
   (when flags
@@ -664,14 +1047,15 @@ LIBRARY-FLAGS, when non-nil, is appended to `verilog-library-flags'."
   "Dump FILE's AUTO connectivity report to OUTPUT.
 When OUTPUT is nil or \"-\", print JSON to stdout.  LIBRARY-FLAGS is an
 optional list appended to `verilog-library-flags'."
-  (let ((json-text (concat (vm-auto-report--json
-                            (vm-auto-report-file file library-flags))
-                           "\n")))
+  (let* ((report (vm-auto-report-file file library-flags))
+         (json-text (concat (vm-auto-report--json report) "\n")))
     (cond ((and output (not (equal output "-")))
            (with-temp-file output
              (insert json-text)))
           (t
            (princ json-text)))
+    (when vm-auto-report-write-text-files
+      (vm-auto-report-write-text-files report output))
     json-text))
 
 (defun vm-dump-auto-cli ()
