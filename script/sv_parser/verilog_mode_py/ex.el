@@ -130,6 +130,135 @@
       (modport . ,(and portdata (vm-auto-report--maybe-string
                                   (verilog-sig-modport portdata)))))))
 
+(defun vm-auto-report--alist-get (key alist)
+  "Return KEY from ALIST using `eq' for key comparison."
+  (cdr (assq key alist)))
+
+(defun vm-auto-report--port-entry (direction sig reason)
+  "Return a JSON-ready unconnected port entry for SIG."
+  `((direction . ,direction)
+    (port . ,(verilog-sig-name sig))
+    (name . ,(verilog-sig-name sig))
+    (reason . ,reason)
+    (bits . ,(vm-auto-report--maybe-string (verilog-sig-bits sig)))
+    (multidim . ,(vm-auto-report--maybe-string (verilog-sig-multidim-string sig)))
+    (memory . ,(vm-auto-report--maybe-string (verilog-sig-memory sig)))
+    (signed . ,(and (verilog-sig-signed sig) t))
+    (type . ,(vm-auto-report--maybe-string (verilog-sig-type sig)))
+    (modport . ,(vm-auto-report--maybe-string (verilog-sig-modport sig)))))
+
+(defun vm-auto-report--decl-port-alist (decls)
+  "Return all submodule ports from DECLS as (name direction sig)."
+  (append
+   (mapcar (lambda (sig) (list (verilog-sig-name sig) "output" sig))
+           (verilog-decls-get-outputs decls))
+   (mapcar (lambda (sig) (list (verilog-sig-name sig) "inout" sig))
+           (verilog-decls-get-inouts decls))
+   (mapcar (lambda (sig) (list (verilog-sig-name sig) "input" sig))
+           (verilog-decls-get-inputs decls))
+   (mapcar (lambda (sig) (list (verilog-sig-name sig) "interface" sig))
+           (verilog-decls-get-interfaces decls))))
+
+(defun vm-auto-report--ordered-decl-ports (decls port-order)
+  "Return declaration ports from DECLS ordered by PORT-ORDER when available."
+  (let ((ports (vm-auto-report--decl-port-alist decls))
+        ordered seen rest)
+    (dolist (name port-order)
+      (let ((entry (assoc name ports)))
+        (when entry
+          (push entry ordered)
+          (push (car entry) seen))))
+    (dolist (entry ports)
+      (unless (member (car entry) seen)
+        (push entry rest)))
+    (append (nreverse ordered) (nreverse rest))))
+
+(defun vm-auto-report--port-order-from-modi (modi)
+  "Return the declared port order for MODI, best effort."
+  (when modi
+    (condition-case nil
+        (save-excursion
+          (verilog-modi-goto modi)
+          (let ((open (and (eq (char-before) ?\() (1- (point))))
+                close names)
+            (when open
+              (goto-char open)
+              (setq close (vm-auto-report--sexp-end-at-point))
+              (when close
+                (goto-char (1+ open))
+                (while (< (point) (1- close))
+                  (let ((start (point))
+                        end segment name)
+                    (setq end (vm-auto-report--connection-end (1- close)))
+                    (setq segment (buffer-substring-no-properties start end))
+                    (setq name (vm-auto-report--port-name-from-header-segment segment))
+                    (when name
+                      (push name names))
+                    (when (looking-at ",")
+                      (forward-char 1))))
+                (nreverse names)))))
+      (error nil))))
+
+(defun vm-auto-report--port-name-from-header-segment (segment)
+  "Return the port name represented by a module header SEGMENT."
+  (let ((start 0)
+        names name)
+    (while (string-match "\\([a-zA-Z_$][a-zA-Z0-9_$]*\\|\\\\[^ \t\n\f]+\\s-\\)" segment start)
+      (setq name (match-string 1 segment))
+      (setq start (match-end 0))
+      (unless (or (member name verilog-keywords)
+                  (member name '("signed" "unsigned" "wire" "reg" "logic"
+                                 "bit" "tri" "input" "output" "inout"
+                                 "parameter" "localparam")))
+        (push name names)))
+    (car names)))
+
+(defun vm-auto-report--connection-dot-star-p (connections)
+  "Return non-nil if CONNECTIONS contains a .*-style connection."
+  (let ((found nil))
+    (dolist (conn (append connections nil))
+      (when (equal (vm-auto-report--alist-get 'style conn) "dot-star")
+        (setq found t)))
+    found))
+
+(defun vm-auto-report--connection-port-state (connections)
+  "Return (connected empty) port-name lists from CONNECTIONS."
+  (let (connected empty)
+    (dolist (conn (append connections nil))
+      (let ((port (vm-auto-report--alist-get 'port conn))
+            (expr (vm-auto-report--alist-get 'expr conn))
+            (style (vm-auto-report--alist-get 'style conn)))
+        (when (and port
+                   (not (equal port "*"))
+                   (member style '("named" "dot-name" "ordered")))
+          (if (or (not expr) (string-empty-p expr))
+              (push port empty)
+            (push port connected)))))
+    (list connected empty)))
+
+(defun vm-auto-report--unconnected-ports (submod-decls connections port-order)
+  "Return ports from SUBMOD-DECLS not connected by CONNECTIONS."
+  (if (not submod-decls)
+      (vm-auto-report--vector nil)
+    (let* ((state (vm-auto-report--connection-port-state connections))
+           (connected (nth 0 state))
+           (empty (nth 1 state))
+           (dot-star (vm-auto-report--connection-dot-star-p connections))
+           unconnected)
+      (dolist (entry (vm-auto-report--ordered-decl-ports submod-decls port-order))
+        (let ((name (nth 0 entry))
+              (direction (nth 1 entry))
+              (sig (nth 2 entry)))
+          (cond ((member name empty)
+                 (push (vm-auto-report--port-entry direction sig "empty")
+                       unconnected))
+                ((or dot-star (member name connected))
+                 nil)
+                (t
+                 (push (vm-auto-report--port-entry direction sig "omitted")
+                       unconnected)))))
+      (vm-auto-report--vector (nreverse unconnected)))))
+
 (defun vm-auto-report--section-direction ()
   "Return the AUTOINST section direction at point, or nil."
   (cond ((looking-at "\\s-*//\\s-*Outputs\\b") "output")
@@ -335,19 +464,21 @@
              (append `((style . "dot-name"))
                      (vm-auto-report--connection nil port expr submod-decls)))))))
 
-(defun vm-auto-report--read-ordered-connection (index limit)
+(defun vm-auto-report--read-ordered-connection (index limit submod-decls port-order)
   "Read an ordered port connection at point."
   (let ((start (point))
-        end expr)
+        end expr port)
     (setq end (vm-auto-report--connection-end limit))
     (setq expr (string-trim (buffer-substring-no-properties start end)))
-    (unless (string-empty-p expr)
-      `((style . "ordered")
-        (index . ,index)
-        (port . nil)
-        (expr . ,expr)))))
+    (setq port (nth index port-order))
+    (append `((style . "ordered")
+              (index . ,index))
+            (if port
+                (vm-auto-report--connection nil port expr submod-decls)
+              `((port . nil)
+                (expr . ,expr))))))
 
-(defun vm-auto-report--instance-connections (open close submod-decls)
+(defun vm-auto-report--instance-connections (open close submod-decls port-order)
   "Return parsed connections in the instance port list from OPEN to CLOSE."
   (let ((limit (1- close))
         (index 0)
@@ -359,7 +490,8 @@
         (when (< (point) limit)
           (let ((conn (if (looking-at "\\.")
                           (vm-auto-report--read-named-connection limit submod-decls)
-                        (vm-auto-report--read-ordered-connection index limit))))
+                        (vm-auto-report--read-ordered-connection
+                         index limit submod-decls port-order))))
             (when conn
               (push conn connections))
             (setq index (1+ index))
@@ -382,7 +514,10 @@
          (subdecls (and submodi
                         (condition-case nil
                             (verilog-modi-get-decls submodi)
-                          (error nil)))))
+                          (error nil))))
+         (port-order (vm-auto-report--port-order-from-modi submodi))
+         (connections (vm-auto-report--instance-connections
+                       open close subdecls port-order)))
     (when (or submodi vm-auto-report-include-unresolved-instances)
       `((module . ,module)
         (instance . ,inst)
@@ -390,7 +525,9 @@
         (definition_type . ,(and submodi (verilog-modi-get-type submodi)))
         (source . ,(vm-auto-report--instance-source open close))
         (location . ,(vm-auto-report--location inst-start))
-        (connections . ,(vm-auto-report--instance-connections open close subdecls))))))
+        (connections . ,connections)
+        (unconnected_ports . ,(vm-auto-report--unconnected-ports
+                               subdecls connections port-order))))))
 
 (defun vm-auto-report--parse-instance-chain-at-line (module-end)
   "Parse a normal instance declaration beginning on the current line."
