@@ -743,6 +743,102 @@
         (format "%s %s.%s" module instance port)
       (format "%s %s[%s]" module instance (or index "?")))))
 
+(defun vm-auto-report--signal-endpoint (inst conn)
+  "Return a structured endpoint record for INST/CONN."
+  `((module . ,(vm-auto-report--alist-get 'module inst))
+    (instance . ,(vm-auto-report--alist-get 'instance inst))
+    (port . ,(vm-auto-report--alist-get 'port conn))
+    (index . ,(vm-auto-report--alist-get 'index conn))
+    (direction . ,(vm-auto-report--alist-get 'direction conn))
+    (source . ,(vm-auto-report--signal-source inst conn))))
+
+(defun vm-auto-report--endpoint-label (endpoint)
+  "Return a compact label for ENDPOINT."
+  (let ((instance (vm-auto-report--alist-get 'instance endpoint))
+        (port (vm-auto-report--alist-get 'port endpoint))
+        (index (vm-auto-report--alist-get 'index endpoint))
+        (source (vm-auto-report--alist-get 'source endpoint)))
+    (cond ((and instance port)
+           (format "%s.%s" instance port))
+          ((and instance index)
+           (format "%s[%s]" instance index))
+          ((stringp source)
+           source)
+          (t ""))))
+
+(defun vm-auto-report--ordered-endpoints (endpoints)
+  "Return ENDPOINTS in source appearance order."
+  (nreverse (copy-sequence endpoints)))
+
+(defun vm-auto-report--logic-comment-from-endpoints (endpoints)
+  "Return relation text for logic ENDPOINTS."
+  (when endpoints
+    (let* ((ordered (vm-auto-report--ordered-endpoints endpoints))
+           (drivers nil)
+           (loads nil)
+           (ambiguous nil))
+      (dolist (endpoint ordered)
+        (pcase (vm-auto-report--alist-get 'direction endpoint)
+          ("output"
+           (push endpoint drivers))
+          ("input"
+           (push endpoint loads))
+          ("inout"
+           (push endpoint ambiguous))
+          (_
+           (push endpoint ambiguous))))
+      (let ((driver-labels (mapcar #'vm-auto-report--endpoint-label (nreverse drivers)))
+            (load-labels (mapcar #'vm-auto-report--endpoint-label (nreverse loads)))
+            (other-labels (mapcar #'vm-auto-report--endpoint-label (nreverse ambiguous))))
+        (cond
+         ((and (null load-labels) (null other-labels) (= (length driver-labels) 1))
+          (format "from %s" (car driver-labels)))
+         ((and (null driver-labels) (null other-labels) (= (length load-labels) 1))
+          (format "to %s" (car load-labels)))
+         ((and (= (length driver-labels) 1) load-labels (null other-labels))
+          (format "from %s to %s"
+                  (car driver-labels)
+                  (mapconcat #'identity load-labels ", ")))
+         ((and (= (length driver-labels) 1) (null load-labels) (= (length other-labels) 1))
+         (format "connect %s and %s" (car driver-labels) (car other-labels)))
+         ((> (length ordered) 1)
+          (format "connect %s"
+                  (mapconcat #'identity
+                             (append driver-labels load-labels other-labels)
+                             ", ")))
+         ((= (length driver-labels) 1)
+          (format "from %s" (car driver-labels)))
+         ((= (length load-labels) 1)
+          (format "to %s" (car load-labels)))
+         (t
+          (format "connect %s"
+                  (mapconcat #'identity
+                             (append driver-labels load-labels other-labels)
+                             ", "))))))))
+
+(defun vm-auto-report--interface-comment-from-endpoints (endpoints)
+  "Return relation text for interface ENDPOINTS."
+  (let* ((ordered (vm-auto-report--ordered-endpoints endpoints))
+         (labels (mapcar #'vm-auto-report--endpoint-label ordered)))
+    (cond
+     ((null labels) nil)
+     ((= (length labels) 1)
+      (format "connect %s" (car labels)))
+     ((= (length labels) 2)
+      (format "connect %s with %s" (car labels) (cadr labels)))
+     (t
+      (format "connect %s with %s"
+              (car labels)
+              (mapconcat #'identity (cdr labels) ", "))))))
+
+(defun vm-auto-report--relation-comment (kind endpoints)
+  "Return a compact relation comment for KIND and ENDPOINTS."
+  (cond ((equal kind "interface")
+         (vm-auto-report--interface-comment-from-endpoints endpoints))
+        ((equal kind "logic")
+         (vm-auto-report--logic-comment-from-endpoints endpoints))
+        (t nil)))
+
 (defun vm-auto-report--expand-dot-star-connections (inst connections)
   "Expand .*-style CONNECTIONS for INST into per-port entries."
   (let* ((submodi (vm-auto-report--lookup-module
@@ -755,9 +851,11 @@
     (vm-auto-report--expand-dot-star-with-decls
      connections subdecls port-order)))
 
-(defun vm-auto-report--record-signal (name kind type bits signed source records)
+(defun vm-auto-report--record-signal (name kind type bits signed inst conn records)
   "Add or update a signal declaration record."
-  (let ((record (assoc name records)))
+  (let* ((source (vm-auto-report--signal-source inst conn))
+         (endpoint (vm-auto-report--signal-endpoint inst conn))
+         (record (assoc name records)))
     (if record
         (let ((entry (cdr record)))
           (setcdr (assq 'bits entry)
@@ -770,6 +868,10 @@
                   (vm-auto-report--add-unique
                    source
                    (vm-auto-report--alist-get 'sources entry)))
+          (setcdr (assq 'endpoints entry)
+                  (vm-auto-report--add-unique
+                   endpoint
+                   (vm-auto-report--alist-get 'endpoints entry)))
           (when (and type
                      (vm-auto-report--alist-get 'type entry)
                      (not (equal type (vm-auto-report--alist-get 'type entry))))
@@ -788,6 +890,7 @@
                (bits . ,bits)
                (signed . ,signed)
                (sources . (,source))
+               (endpoints . (,endpoint))
                (notes . nil)))
        records))))
 
@@ -820,7 +923,7 @@
               (if (and name type)
                   (setq records
                         (vm-auto-report--record-signal
-                         name "interface" type nil nil source records))
+                         name "interface" type nil nil inst conn records))
                 (push `((source . ,source)
                         (expr . ,expr)
                         (reason . "complex or unresolved interface expression"))
@@ -835,7 +938,8 @@
                          "logic"
                          (or (nth 1 sig) bits)
                          signed
-                         source
+                         inst
+                         conn
                          records))
                 (push `((source . ,source)
                         (expr . ,expr)
@@ -868,13 +972,19 @@
 (defun vm-auto-report--format-comment (record)
   "Return source comment text for RECORD."
   (let* ((entry (cdr record))
+         (kind (vm-auto-report--alist-get 'kind entry))
+         (endpoints (vm-auto-report--alist-get 'endpoints entry))
          (sources (sort (copy-sequence
                          (vm-auto-report--alist-get 'sources entry))
                         #'string<))
          (notes (sort (copy-sequence
                        (vm-auto-report--alist-get 'notes entry))
                       #'string<))
-         (text (mapconcat #'identity sources ", ")))
+         (relation (and endpoints
+                        (vm-auto-report--relation-comment kind endpoints)))
+         (text (if (and relation (not (string-empty-p relation)))
+                   relation
+                 (mapconcat #'identity sources ", "))))
     (when notes
       (setq text (concat text "; " (mapconcat #'identity notes ", "))))
     text))

@@ -44,17 +44,16 @@ emacs -Q --batch -l ./ex.el -f vm-dump-auto-cli -- top.sv auto_report.json -y rt
 | `Interface interconnect declarations`           | 从 interface port 连接汇总出的 interface 实例声明，格式为 `if_type if_inst ();`。    |
 | `Connections that were not converted to declarations` | 不能安全转成声明的连接表达式，例如拼接、常量、函数调用或找不到定义的 `.*`。          |
 
-声明宽度、`signed`、interface type 等信息来自被例化 submodule 的端口定义；同名信号会合并，注释里会列出使用它的 `submodule instance.port` 来源。`.*` 会尽量按 submodule 端口定义展开为同名连接后再进入声明列表。
+声明宽度、`signed`、interface type 等信息来自被例化 submodule 的端口定义；同名信号会合并，注释里会标出 instance port 之间的连接关系。`logic` 会尽量按方向输出 `from ... to ...`，interface 会输出 `connect ... with ...`。`.*` 会尽量按 submodule 端口定义展开为同名连接后再进入声明列表。
 
 示例：
 
 ```systemverilog
 // Logic interconnect declarations
-logic       clk;                                 // child u_child.clk
-logic [7:0] data;                                // child u_child.data
+logic data;                                      // from u_prod.data_o to u_cons.data_i
 
 // Interface interconnect declarations
-axi_if m_axi ();                                 // child u_child.m_axi
+axi_if m_axi ();                                 // connect u_master.m_axi with u_slave.m_axi
 ```
 
 ## `unconnect.txt`
