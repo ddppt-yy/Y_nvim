@@ -750,6 +750,7 @@
     (port . ,(vm-auto-report--alist-get 'port conn))
     (index . ,(vm-auto-report--alist-get 'index conn))
     (direction . ,(vm-auto-report--alist-get 'direction conn))
+    (modport . ,(vm-auto-report--alist-get 'modport conn))
     (source . ,(vm-auto-report--signal-source inst conn))))
 
 (defun vm-auto-report--endpoint-label (endpoint)
@@ -893,6 +894,32 @@
      (equal scope (vm-auto-report--skip-scope item records)))
    skipped))
 
+(defun vm-auto-report--record-endpoints (record)
+  "Return endpoints stored in RECORD."
+  (vm-auto-report--alist-get 'endpoints (cdr record)))
+
+(defun vm-auto-report--record-single-endpoint (record)
+  "Return RECORD's single endpoint, or nil."
+  (let ((endpoints (vm-auto-report--record-endpoints record)))
+    (and (= (length endpoints) 1) (car endpoints))))
+
+(defun vm-auto-report--external-direction (record)
+  "Return external port direction text for RECORD."
+  (let* ((endpoint (vm-auto-report--record-single-endpoint record))
+         (direction (and endpoint
+                         (vm-auto-report--alist-get 'direction endpoint))))
+    (and (member direction '("input" "output" "inout"))
+         direction)))
+
+(defun vm-auto-report--external-modport (record)
+  "Return external interface modport text for RECORD."
+  (let* ((endpoint (vm-auto-report--record-single-endpoint record))
+         (modport (and endpoint
+                       (vm-auto-report--alist-get 'modport endpoint))))
+    (and (stringp modport)
+         (not (string-empty-p modport))
+         modport)))
+
 (defun vm-auto-report--expand-dot-star-connections (inst connections)
   "Expand .*-style CONNECTIONS for INST into per-port entries."
   (let* ((submodi (vm-auto-report--lookup-module
@@ -1012,13 +1039,20 @@
          (kind (vm-auto-report--alist-get 'kind entry))
          (type (vm-auto-report--alist-get 'type entry))
          (bits (vm-auto-report--alist-get 'bits entry))
-         (signed (vm-auto-report--alist-get 'signed entry)))
+         (signed (vm-auto-report--alist-get 'signed entry))
+         (external (vm-auto-report--record-scope-p record "ex"))
+         (direction (and external
+                         (vm-auto-report--external-direction record)))
+         (modport (and external
+                       (vm-auto-report--external-modport record))))
     (cond ((equal kind "interface")
-           (or type "interface"))
+           (concat (or type "interface")
+                   (if modport (concat "." modport) "")))
           (t
            (string-join
             (delq nil
-                  (list "logic"
+                  (list direction
+                        "logic"
                         (and signed "signed")
                         bits))
             " ")))))

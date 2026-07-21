@@ -41,11 +41,11 @@ emacs -Q --batch -l ./ex.el -f vm-dump-auto-cli -- top.sv auto_report.json -y rt
 
 | 段落                                            | 含义                                                                                 |
 | ----------------------------------------------- | ------------------------------------------------------------------------------------ |
-| `Internal logic interconnect declarations` / `External logic interconnect declarations` | 从 `instances[].connections` 汇总出的普通端口互联信号声明。多端点互联进 `signal_inner.txt`，单端点/对外信号进 `signal_ex.txt`。 |
-| `Internal interface interconnect declarations` / `External interface interconnect declarations` | 从 interface port 连接汇总出的 interface 实例声明。多端点 interface 进 `signal_inner.txt`，单端点/对外 interface 进 `signal_ex.txt`。 |
+| `Internal logic interconnect declarations` / `External logic interconnect declarations` | 从 `instances[].connections` 汇总出的普通端口互联信号声明。多端点互联进 `signal_inner.txt`；单端点/对外信号进 `signal_ex.txt`，并带 `input` / `output` / `inout` 方向。 |
+| `Internal interface interconnect declarations` / `External interface interconnect declarations` | 从 interface port 连接汇总出的 interface 实例声明。多端点 interface 进 `signal_inner.txt`；单端点/对外 interface 进 `signal_ex.txt`，并保留 modport 角色。 |
 | `Connections that were not converted to declarations` | 不能安全转成声明的连接表达式，例如拼接、常量、函数调用或找不到定义的 `.*`。          |
 
-声明宽度、`signed`、interface type 等信息来自被例化 submodule 的端口定义；同名信号会合并，注释里会标出 instance port 之间的连接关系。`logic` 会尽量按方向输出 `from ... to ...`，interface 会输出 `connect ... with ...`。多端点信号写入 `signal_inner.txt`，单端点信号和难以稳定归类的复杂表达式默认写入 `signal_ex.txt`。`.*` 会尽量按 submodule 端口定义展开为同名连接后再进入声明列表。
+声明宽度、`signed`、interface type 等信息来自被例化 submodule 的端口定义；同名信号会合并，注释里会标出 instance port 之间的连接关系。`logic` 会尽量按方向输出 `from ... to ...`，interface 会输出 `connect ... with ...`。多端点信号写入 `signal_inner.txt`；单端点信号和难以稳定归类的复杂表达式默认写入 `signal_ex.txt`，其中对外 logic 会加端口方向，对外 interface 会加 modport。`.*` 会尽量按 submodule 端口定义展开为同名连接后再进入声明列表。
 
 示例：
 
@@ -61,10 +61,11 @@ axi_if m_axi ();                                 // connect u_master.m_axi with 
 
 ```systemverilog
 // External logic interconnect declarations
-logic clk;                                       // to u_child.clk
+input logic  clk;                                // to u_child.clk
+output logic done;                               // from u_child.done
 
 // External interface interconnect declarations
-link_if bus ();                                  // connect u_child.bus
+link_if.master bus ();                           // connect u_child.bus
 ```
 
 ## `unconnect.txt`
