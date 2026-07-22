@@ -1,3 +1,4 @@
+;;; ddppt-yy https://github.com/ddppt-yy/Y_nvim
 ;;; ex.el --- Dump verilog-mode AUTO connectivity reports -*- lexical-binding: t; -*-
 
 ;; Load the sibling verilog-mode.el when this file is used standalone.
