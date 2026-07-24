@@ -82,6 +82,42 @@ function s:GetSignalReport(mode)
    return systemlist(l:cmd)
 endfunction
 
+function s:FormatExternalPortLine(line, delimiter)
+   let l:line = substitute(a:line, '\s*();\(\s*//\)', a:delimiter . '\1', '')
+   let l:line = substitute(l:line, ';\(\s*//\)', a:delimiter . '\1', '')
+   let l:line = substitute(l:line, '\s*();\s*$', a:delimiter, '')
+   let l:line = substitute(l:line, ';\s*$', a:delimiter, '')
+   return l:line
+endfunction
+
+function s:FormatExternalPortList(lines)
+   let l:lines = copy(a:lines)
+   let l:decl_lnums = []
+
+   for l:idx in range(0, len(l:lines) - 1)
+      if l:lines[l:idx] =~# '^\s*\S'
+            \ && l:lines[l:idx] !~# '^\s*//'
+            \ && l:lines[l:idx] =~# ';\(\s*//\|\s*$\)'
+         call add(l:decl_lnums, l:idx)
+      endif
+   endfor
+
+   for l:idx in l:decl_lnums
+      let l:delimiter = l:idx == l:decl_lnums[-1] ? '' : ','
+      let l:lines[l:idx] = s:FormatExternalPortLine(l:lines[l:idx], l:delimiter)
+   endfor
+
+   return l:lines
+endfunction
+
+function s:GetAutoInsertReport(mode)
+   let l:lines = s:GetSignalReport(a:mode)
+   if a:mode ==# '-ex'
+      return s:FormatExternalPortList(l:lines)
+   endif
+   return l:lines
+endfunction
+
 function s:External()
    call s:InsertSignalReport('-ex')
 endfunction
@@ -139,7 +175,7 @@ function s:ReplaceMarkerRange(begin_pat, end_pat, mode)
    endif
 
    let [l:begin_lnum, l:end_lnum] = s:FindMarkerRange(a:begin_pat, a:end_pat)
-   call append(l:begin_lnum, s:GetSignalReport(a:mode))
+   call append(l:begin_lnum, s:GetAutoInsertReport(a:mode))
    return 1
 endfunction
 
