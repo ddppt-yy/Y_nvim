@@ -8,8 +8,8 @@
 " Description    : 
 " //external_intf_begin
 " //external_intf_end
-" //inner_intf_begin
-" //inner_intf_end
+" //internal_intf_begin
+" //internal_intf_end
 " -------------------------------------------------------
 
 if exists("loaded_verilog_mode_intf")
@@ -182,7 +182,7 @@ endfunction
 function s:IntfMarkerRanges()
    return [
          \ ['^\s*//\s*external_intf_begin\s*$', '^\s*//\s*external_intf_end\s*$', '-ex'],
-         \ ['^\s*//\s*inn\(er\|el\)_intf_begin\s*$', '^\s*//\s*inn\(er\|el\)_intf_end\s*$', '-in'],
+         \ ['^\s*//\s*internal_intf_begin\s*$', '^\s*//\s*internal_intf_end\s*$', '-in'],
          \ ]
 endfunction
 
