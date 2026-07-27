@@ -1,6 +1,6 @@
 # verilog_mode_intf.vim Usage
 
-`verilog_mode_intf.vim` 在 Vim 里调用 `verilog-mode.el` / `ex.el`，用于生成 AUTO、对外端口、内部互联和未连接报告。
+`verilog_mode_intf.vim` 通过 GVim 菜单 `SvConnect -> Verilog` 使用，负责 AUTO 展开、对外/内部信号插入和未连接报告。
 
 在 SV 文件中预留 marker：
 
@@ -15,16 +15,17 @@ module top (
 endmodule
 ```
 
-常用命令：
+菜单项：
 
 | 命令 | 功能 |
 | ---- | ---- |
-| `:VerilogAdd` | 执行 verilog-mode AUTO 展开。 |
-| `:VerilogAddExternalSignal` | 在光标处插入对外信号声明。 |
-| `:VerilogAddInternalSignal` | 在光标处插入内部互联声明。 |
-| `:AutoInsertIntf` | 自动更新 marker 之间内容：external 区间插入端口列表，非最后一行逗号结尾，最后一行无结尾符；inner 区间插入内部声明。 |
-| `:AutoInsertDelate` | 删除 external/inner marker 之间的已生成文本，保留 marker。 |
-| `:VerilogGenUnconnectReport` | 生成 `.auto_report.json`、`signal_inner.txt`、`signal_ex.txt`、`unconnect.txt`。 |
+| `AddAuto` | 执行 verilog-mode AUTO 展开。 |
+| `DeleteAuto` | 删除 AUTO 生成内容。 |
+| `AddExternalSignal` | 在光标处插入对外信号声明。 |
+| `AddInternalSignal` | 在光标处插入内部互联声明。 |
+| `AutoInsertIntf` | 自动更新 marker 之间内容：external 区间插入端口列表，非最后一行逗号结尾，最后一行无结尾符；inner 区间插入内部声明。 |
+| `AutoInsertDelate` | 删除 external/inner marker 之间的已生成文本，保留 marker。 |
+| `GenUnconnectReport` | 生成 `.auto_report.json`、`signal_inner.txt`、`signal_ex.txt`、`unconnect.txt`。 |
 
 # ex.el Usage
 
