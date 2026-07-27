@@ -10,8 +10,8 @@ module top (
   //external_intf_end
 );
 
-  //inner_intf_begin
-  //inner_intf_end
+  //internal_intf_begin
+  //internal_intf_end
 endmodule
 ```
 
