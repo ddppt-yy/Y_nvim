@@ -1,3 +1,31 @@
+# verilog_mode_intf.vim Usage
+
+`verilog_mode_intf.vim` 在 Vim 里调用 `verilog-mode.el` / `ex.el`，用于生成 AUTO、对外端口、内部互联和未连接报告。
+
+在 SV 文件中预留 marker：
+
+```systemverilog
+module top (
+  //external_intf_begin
+  //external_intf_end
+);
+
+  //inner_intf_begin
+  //inner_intf_end
+endmodule
+```
+
+常用命令：
+
+| 命令 | 功能 |
+| ---- | ---- |
+| `:VerilogAdd` | 执行 verilog-mode AUTO 展开。 |
+| `:VerilogAddExternalSignal` | 在光标处插入对外信号声明。 |
+| `:VerilogAddInternalSignal` | 在光标处插入内部互联声明。 |
+| `:AutoInsertIntf` | 自动更新 marker 之间内容：external 区间插入端口列表，非最后一行逗号结尾，最后一行无结尾符；inner 区间插入内部声明。 |
+| `:AutoInsertDelate` | 删除 external/inner marker 之间的已生成文本，保留 marker。 |
+| `:VerilogGenUnconnectReport` | 生成 `.auto_report.json`、`signal_inner.txt`、`signal_ex.txt`、`unconnect.txt`。 |
+
 # ex.el Usage
 
 `ex.el` 是基于 `verilog-mode.el` 的 batch 报告脚本，用来输出输入 Verilog/SystemVerilog 文件中的模块、实例、自动连接、普通实例连接、未连接端口以及互联声明信息。
