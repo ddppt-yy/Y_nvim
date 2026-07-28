@@ -2,7 +2,7 @@
 
 local map = vim.api.nvim_set_keymap
 -- 复用 opt 参数
-local opt = {noremap = true, silent = true }
+local opt = { noremap = true, silent = true }
 
 -- With a map leader it's possible to do extra key combinations
 -- like <leader>w saves the current file
@@ -38,10 +38,10 @@ map('n' , '<C-Right>' , '<C-W>l' , opt)
 
 
 -- 窗口大小调整
-map("n" , "<C-h>" , ":vertical resize -2<CR>" , opt)
-map("n" , "<C-l>" , ":vertical resize +2<CR>" , opt)
-map("n" , "<C-j>" , ":resize -2<CR>"          , opt)
-map("n" , "<C-k>" , ":resize +2<CR>"          , opt)
+map("n", "<C-A-h>", ":vertical resize -2<CR>", opt)
+map("n", "<C-A-l>", ":vertical resize +2<CR>", opt)
+map("n", "<C-A-j>", ":resize -2<CR>", opt)
+map("n", "<C-A-k>", ":resize +2<CR>", opt)
 
 
 
@@ -71,7 +71,7 @@ map('n', '<leader>cd',  ':cd %:p:h<cr>:pwd<cr>' , opt)
 --""""""""""""""""""""
 --BLOCK_BEGIN
 -- 将普通模式下的 <C-z> 映射为「无操作」
-vim.keymap.set('n', '<C-z>', '<nop>', { noremap = true })
+map('n', '<C-z>', '<nop>', opt)
 
 
 -- Remap VIM 0 to first non-blank character
@@ -85,8 +85,6 @@ map('v', '<A-k>',  ':m\'<-2<cr>`>my`<mzgv`yo`z' , opt)
 
 
 if (vim.fn.has("mac") == 1 or vim.fn.has("macunix") == 1) then
-    map('n', '<D-j>',  '<M-j>', opt)
-    map('n', '<D-k>',  '<M-k>', opt)
     map('n', '<D-j>',  '<M-j>', opt)
     map('n', '<D-k>',  '<M-k>', opt)
 end
@@ -111,7 +109,7 @@ map('n', '<leader>s?',  'z=' , opt)
 -- code snip
 -- *********
 --BLOCK_BEGIN
-vim.keymap.set('n', '<leader>bb',  '<Esc>aBLOCK_BEGIN<Esc>oBLOCK_END<Esc>O')  --TODO
+map('n', '<leader>bb', '<Esc>aBLOCK_BEGIN<Esc>oBLOCK_END<Esc>O', opt) --TODO
 --BLOCK_END
 
 
@@ -134,48 +132,44 @@ map('n', '<a-z>', ':lua ToggleWrap()<CR>', opt)
 ------------------ plugins -----------------------
 
 --bufferline move--
-vim.keymap.set('n', '<c-table>',  ":bnext<CR>")
-vim.keymap.set('n', '<c-s-table>',  ":bprevious<CR>")
+map('n', '<C-Tab>', ':bnext<CR>', opt)
+map('n', '<C-S-Tab>', ':bprevious<CR>', opt)
 
 --symbol outlne--
-vim.api.nvim_set_keymap("n", "<leader>so", "<cmd>SymbolsOutline<CR>", {silent = true, noremap = true})
+map("n", "<leader>so", "<cmd>SymbolsOutline<CR>", opt)
 
 --terminal exit   help: https://vi.stackexchange.com/questions/4919/exit-from-terminal-mode-in-neovim-vim-8
-vim.cmd("tnoremap <Esc> <C-\\><C-n>")
-vim.keymap.set('n', '<a-d>',  ":Lspsaga term_toggle<CR>")
+map('t', '<Esc>', '<C-\\><C-n>', opt)
+map('n', '<A-d>', ':Lspsaga term_toggle<CR>', opt)
 
 -- lsp 快捷键定义
 local lsp_keybinds = {}
 
-lsp_keybinds.set_keymap = function (bufnr)
+lsp_keybinds.set_keymap = function (_)
     print("set lsp keymap")
     -- 跳转到声明
     -- vim.api.nvim_buf_set_keymap(bufnr, "n", "gd", "<cmd>lua vim.lsp.buf.declaration()<CR>", {silent = true, noremap = true})
-    vim.api.nvim_buf_set_keymap(bufnr, "n", "gd", "<cmd>Lspsaga peek_definition<CR>", {silent = true, noremap = true})
+    map("n", "gd", "<cmd>Lspsaga peek_definition<CR>", opt)
 
     -- 跳转到定义
-    vim.api.nvim_buf_set_keymap(bufnr, "n", "gD", "<cmd>lua vim.lsp.buf.definition()<CR>", {silent = true, noremap = true})
+    map("n", "gD", "<cmd>lua vim.lsp.buf.definition()<CR>", opt)
     -- 显示注释文档
     -- vim.api.nvim_buf_set_keymap(bufnr, "n", "gh", "<cmd>lua vim.lsp.buf.hover()<CR>", {silent = true, noremap = true})
-    vim.api.nvim_buf_set_keymap(bufnr, "n", "gh", "<cmd>Lspsaga lsp_finder<CR>", {silent = true, noremap = true})
+    map("n", "gh", "<cmd>Lspsaga lsp_finder<CR>", opt)
     -- 跳转到实现
-    vim.api.nvim_buf_set_keymap(bufnr, "n", "gi", "<cmd>lua vim.lsp.buf.implementation()<CR>", {silent = true, noremap = true})
+    map("n", "gi", "<cmd>lua vim.lsp.buf.implementation()<CR>", opt)
     -- 跳转到引用位置
     -- vim.api.nvim_buf_set_keymap(bufnr, "n", "gr", "<cmd>lua vim.lsp.buf.references()<CR>", {silent = true, noremap = true})
-    vim.api.nvim_buf_set_keymap(bufnr, "n", "gr", "<cmd>Lspsaga rename<CR>", {silent = true, noremap = true})
+    map("n", "gr", "<cmd>Lspsaga rename<CR>", opt)
     -- 以浮窗形式显示错误
-    vim.api.nvim_buf_set_keymap(bufnr, "n", "go", "<cmd>Lspsaga show_line_diagnostics<CR>", {silent = true, noremap = true})
+    map("n", "go", "<cmd>Lspsaga show_line_diagnostics<CR>", opt)
     -- vim.api.nvim_buf_set_keymap(bufnr, "n", "go", "<cmd>lua vim.diagnostic.open_float()<CR>", {silent = true, noremap = true})
     -- vim.api.nvim_buf_set_keymap(bufnr, "n", "gp", "<cmd>lua vim.diagnostic.goto_prev()<CR>", {silent = true, noremap = true})
-    vim.api.nvim_buf_set_keymap(bufnr, "n", "gn", "<cmd>lua vim.diagnostic.goto_next()<CR>", {silent = true, noremap = true})
+    map("n", "gn", "<cmd>lua vim.diagnostic.goto_next()<CR>", opt)
 
-    vim.api.nvim_buf_set_keymap(bufnr, "n", "<leader>cd", "<cmd>Lspsaga show_cursor_diagnostics<CR>", {silent = true, noremap = true})
-    vim.api.nvim_buf_set_keymap(bufnr, "n", "<leader>cd", "<cmd>Lspsaga show_line_diagnostics<CR>", {silent = true, noremap = true})
-    vim.api.nvim_buf_set_keymap(bufnr, "n", "<leader>ca", "<cmd>Lspsaga code_action<CR>", {silent = true, noremap = true})
-    vim.api.nvim_buf_set_keymap(bufnr, "v", "<leader>ca", "<cmd>Lspsaga code_action<CR>", {silent = true, noremap = true})
+    map("n", "<leader>cd", "<cmd>Lspsaga show_cursor_diagnostics<CR>", opt)
+    map("n", "<leader>ca", "<cmd>Lspsaga code_action<CR>", opt)
+    map("v", "<leader>ca", "<cmd>Lspsaga code_action<CR>", opt)
 end
 return lsp_keybinds
-
-
-
 
