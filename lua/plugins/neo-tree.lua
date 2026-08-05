@@ -11,7 +11,7 @@ return {
         keys = {
             {
                 "<F2>",
-                "<cmd>Neotree toggle<CR>",
+                "<cmd>Neotree toggle position=current<CR>",
                 desc = "打开/关闭 Neo-tree",
             },
         },
