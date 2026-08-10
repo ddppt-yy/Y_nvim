@@ -1,0 +1,33 @@
+
+
+docker run -it --rm -v "$PWD:/root/nvim" rockylinux:8 bash
+
+# 启用 EPEL 和 PowerTools 源
+dnf install -y epel-release
+dnf config-manager --set-enabled powertools
+
+# 安装编译依赖
+dnf install -y gcc gcc-c++ make cmake unzip curl gettext-devel \
+               libtool automake autoconf pkgconfig ninja-build
+
+
+# 进入挂载的源码目录
+cd /root/nvim
+
+# 克隆 Neovim 源码（如果目录为空）
+git clone https://github.com/neovim/neovim.git .
+
+# 切换到稳定版分支
+git checkout stable
+
+
+# make CMAKE_BUILD_TYPE=Release
+make CMAKE_BUILD_TYPE=Release CMAKE_INSTALL_PREFIX=/tmp/nvim-static install
+
+
+cd /tmp
+tar -czf /root/nvim/nvim-static.tar.gz nvim-static
+
+
+
+
