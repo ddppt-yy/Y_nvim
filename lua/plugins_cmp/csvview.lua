@@ -1,0 +1,197 @@
+return {
+    "hat0uma/csvview.nvim",
+    ---@module "csvview"
+    ---@type CsvView.Options
+    opts = {
+        parser = { comments = { "#", "//" } },
+        keymaps = {
+            -- Text objects for selecting fields
+            textobject_field_inner = { "if", mode = { "o", "x" } },
+            textobject_field_outer = { "af", mode = { "o", "x" } },
+            -- Excel-like navigation:
+            -- Use <Tab> and <S-Tab> to move horizontally between fields.
+            -- Use <Enter> and <S-Enter> to move vertically between rows and place the cursor at the end of the field.
+            -- Note: In terminals, you may need to enable CSI-u mode to use <S-Tab> and <S-Enter>.
+            jump_next_field_end = { "<Tab>", mode = { "n", "v" } },
+            jump_prev_field_end = { "<S-Tab>", mode = { "n", "v" } },
+            jump_next_row = { "<Enter>", mode = { "n", "v" } },
+            jump_prev_row = { "<S-Enter>", mode = { "n", "v" } },
+        },
+    },
+    cmd = { "CsvViewEnable", "CsvViewDisable", "CsvViewToggle" },
+    sticky_header = true, -- 粘性表头
+    display_mode = "border", -- highlight（默认）：高亮分隔符;  border：在列之间画竖线，像表格边框一样。
+    async_chunksize = 50, --处理超大 CSV 文件时，如果觉得滚动滞后，可以降低异步处理的块大小（默认为 50）
+}
+
+--
+--
+-- 以下是一份为 `csvview.nvim` 编写的 `README.md` 使用说明，涵盖了安装、配置、基本操作、进阶功能及排错等内容。你可以直接复制到项目中。
+--
+-- ```markdown
+-- # csvview.nvim 使用指南
+--
+-- csvview.nvim 是一款 Neovim 插件，利用虚拟文本技术将 CSV/TSV 文件以对齐的表格形式显示，并提供按列着色、快速跳转和字段文本对象等功能。**它不会修改你的源文件**，只是改善了阅读和编辑体验。
+--
+-- ## 安装
+--
+-- 使用你喜欢的插件管理器，以 [lazy.nvim](https://github.com/folke/lazy.nvim) 为例：
+--
+-- ```lua
+-- {
+--   "hat0uma/csvview.nvim",
+--   opts = {
+--     -- 以下为推荐的默认配置，可按需修改
+--     parser = {
+--       comments = { "#", "//" }  -- 注释前缀，这些行不会被当作数据列处理
+--     },
+--     keymaps = {
+--       -- 字段文本对象（用于操作一个字段）
+--       textobject_field_inner = { "if", mode = { "o", "x" } },
+--       textobject_field_outer = { "af", mode = { "o", "x" } },
+--       -- 在字段之间跳转
+--       jump_next_field_end = { "<Tab>", mode = { "n", "v" } },
+--       jump_prev_field_end = { "<S-Tab>", mode = { "n", "v" } },
+--       -- 在行之间跳转
+--       jump_next_row = { "<Enter>", mode = { "n", "v" } },
+--       jump_prev_row = { "<S-Enter>", mode = { "n", "v" } },
+--     },
+--   },
+--   cmd = { "CsvViewEnable", "CsvViewDisable", "CsvViewToggle" },
+-- }
+-- ```
+--
+-- - 需要 **Neovim 0.10+** 版本。
+-- - 安装后打开任何 `.csv` 或 `.tsv` 文件，表格视图会自动启用。
+--
+-- ## 快速开始
+--
+-- 1. 用 Neovim 打开一个 CSV 文件。
+-- 2. 你会看到数据按列对齐，每列有不同的颜色。
+-- 3. 按下 `<Tab>` 键，你会发现光标跳到了同一行的下一个字段末尾。
+-- 4. 按下 `<Enter>` 键，光标跳到下一行的同一列位置。
+-- 5. 在普通模式下输入 `cif`，可以修改当前字段的内容。
+--
+-- ## 命令
+--
+-- 插件提供了三个命令来控制表格视图的开关：
+--
+-- - `:CsvViewEnable`  – 启用表格视图（默认自动启用）
+-- - `:CsvViewDisable` – 禁用表格视图（恢复原始纯文本）
+-- - `:CsvViewToggle`  – 在启用/禁用之间切换
+--
+-- 你还可以在启用时附加选项，例如：
+-- ```vim
+-- :CsvViewEnable delimiter=; display_mode=border
+-- ```
+--
+-- ## 键位映射
+--
+-- 以下键位映射只在 CSV 视图启用时生效，你可以通过配置自定义它们。
+--
+-- ### 字段间跳转
+-- - `<Tab>` – 跳到当前行下一个字段的末尾
+-- - `<S-Tab>` – 跳到当前行上一个字段的末尾
+--
+-- ### 行间跳转
+-- - `<Enter>` – 跳到下一行的同一列位置
+-- - `<S-Enter>` – 跳到上一行的同一列位置
+--
+-- ### 字段文本对象
+-- 这些文本对象只能在 **可视模式 (v, V, Ctrl-v)** 或 **操作符挂起模式 (operator-pending)** 下使用，比如配合 `y`（复制）, `d`（删除）, `c`（修改）。
+--
+-- - `if` – inner field，选中当前字段的内容（不含分隔符）
+-- - `af` – a field，选中当前字段的内容及其后面的分隔符
+--
+-- #### 示例操作
+-- | 按键序列  | 作用                          |
+-- |-----------|-------------------------------|
+-- | `vif`     | 可视化选中整个字段内容        |
+-- | `cif`     | 删除字段内容并进入插入模式    |
+-- | `yaf`     | 复制该字段及其后的分隔符      |
+-- | `dif`     | 删除该字段内容                |
+--
+-- ## 进阶配置
+--
+-- ### 视图显示模式
+-- 通过 `display_mode` 选项可以改变分隔符的显示方式：
+-- - `highlight`（默认）：高亮分隔符。
+-- - `border`：在列之间画竖线，像表格边框一样。
+--
+-- 可在开启时指定：`:CsvViewEnable display_mode=border`。
+-- 或写入插件的默认配置：
+-- ```lua
+-- opts = {
+--   display_mode = "border",
+-- }
+-- ```
+--
+-- ### 自定义分隔符
+-- 插件会自动检测分隔符（逗号、制表符、分号等）。如果需要强制指定，可以在开启命令中传入：
+-- ```vim
+-- :CsvViewEnable delimiter="|"
+-- ```
+--
+-- ### 粘性表头
+-- 启用后，表头行会固定在屏幕顶部，滚动时始终可见。在配置中开启：
+-- ```lua
+-- opts = {
+--   sticky_header = true,
+-- }
+-- ```
+--
+-- ### 注释行
+-- 如果你的 CSV 文件包含以 `#` 或 `//` 开头的注释行，插件会忽略这些行的字段分割。你可以自定义注释字符：
+-- ```lua
+-- opts = {
+--   parser = {
+--     comments = { "#", "//", "--" },
+--   },
+-- }
+-- ```
+-- 或者在开启时使用 `:CsvViewEnable comment=#`。
+--
+-- ### 颜色调整
+-- 插件提供了 9 个高亮组（`CsvViewCol0` 到 `CsvViewCol8`），分别控制第 1 到第 9 列的颜色。你可以在配色方案或配置中覆盖它们，例如：
+-- ```vim
+-- hi CsvViewCol0 guifg=#ff9999
+-- hi CsvViewCol1 guifg=#99ff99
+-- ```
+--
+-- ### 性能调优
+-- 处理超大 CSV 文件时，如果觉得滚动滞后，可以降低异步处理的块大小（默认为 50）：
+-- ```lua
+-- opts = {
+--   async_chunksize = 20,
+-- }
+-- ```
+--
+-- ## 常见问题
+--
+-- ### 为什么没有自动开启表格视图？
+-- 确保插件已正确安装，并且你的文件具有常见的 CSV/TSV 扩展名（`.csv`, `.tsv`, `.tab` 等）。如果仍未启用，手动执行 `:CsvViewEnable` 试试。
+--
+-- ### 使用 `<Tab>` 跳转但没反应？
+-- 检查是否有其他插件也映射了 `<Tab>` 键。在配置中修改键名，例如改成 `<leader>j`：
+-- ```lua
+-- jump_next_field_end = { "<leader>j", mode = { "n", "v" } },
+-- ```
+--
+-- ### 为什么修改了单元格内容后，对齐错乱了？
+-- `csvview.nvim` 只负责“显示”对齐，不会修改原始数据。如果你用 `cif` 修改了内容，新的内容长度不同，对齐会立即更新。如果出现没有对齐的情况，可以尝试重新打开文件或执行 `:e` 刷新。
+--
+-- ### 如何禁用自动启动？
+-- 在 `opts` 中禁用自动命令：
+-- ```lua
+-- opts = {
+--   auto_load = false,
+-- }
+-- ```
+-- 然后手动通过 `:CsvViewEnable` 触发。
+--
+-- ## 更多资源
+-- - 插件仓库：https://github.com/hat0uma/csvview.nvim
+-- - 问题反馈：在仓库的 Issues 页面提交
+--
+-- 现在，享受在 Neovim 中优雅地处理表格数据吧！
+-- ```

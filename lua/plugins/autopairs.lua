@@ -3,7 +3,6 @@ return {
 	event = "InsertEnter",
 	dependencies = {
 		"nvim-treesitter/nvim-treesitter",
-		"hrsh7th/nvim-cmp",
 	}, -- 与补全插件配合使用时需要
 	config = function()
 		local npairs = require("nvim-autopairs")
@@ -11,6 +10,9 @@ return {
 		local cond = require("nvim-autopairs.conds")
 
 		npairs.setup({
+			-- Blink owns <CR>; its mapping calls autopairs_cr when no
+			-- completion item is visible.
+			map_cr = false,
 			check_ts = true, -- 使用Tree-sitter检查
 			ts_config = {
 				lua = { "string" }, -- lua中不处理字符串内
@@ -53,24 +55,5 @@ return {
 				:with_pair(cond.not_before_text("<"))
 				:use_key(">"),
 		})
-
-		-- ===== 与cmp集成 =====
-		local cmp_autopairs = require("nvim-autopairs.completion.cmp")
-		local cmp = require("cmp")
-		cmp.event:on("confirm_done", cmp_autopairs.on_confirm_done())
-
-		-- ===== 修复<CR>行为 =====
-		local remap = vim.api.nvim_set_keymap
-		local opts = { noremap = true, silent = true, expr = true, replace_keycodes = false }
-		remap("i", "<CR>", "v:lua.MUtils.completion_confirm()", opts)
-
-		MUtils = {}
-		function MUtils.completion_confirm()
-			if vim.fn.pumvisible() ~= 0 then
-				return vim.fn["cmp#confirm"]()
-			else
-				return npairs.autopairs_cr()
-			end
-		end
 	end,
 }

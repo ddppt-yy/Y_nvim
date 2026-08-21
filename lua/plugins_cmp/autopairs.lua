@@ -35,6 +35,7 @@ return {
 		npairs.add_rules({
 			-- 禁用 Verilog 中的单引号补全（覆盖全局设置）
 			Rule("'", "'", "verilog"):with_pair(cond.none()), -- 完全禁用补全
+			Rule("'", "'", "systemverilog"):with_pair(cond.none()), -- 完全禁用补全
 		}, true)
 
 		-- 添加空格规则：| 变成 { | }

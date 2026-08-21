@@ -1,7 +1,6 @@
 return {
 	"neovim/nvim-lspconfig",
 	dependencies = {
-		"saghen/blink.cmp",
 		-- 通过mason来自动安装语言服务器并启用
 		{ "mason-org/mason.nvim", opts = {} },
 		{
@@ -22,7 +21,6 @@ return {
 
 	config = function()
 		require("config.keymaps").set_keymap(0)
-		local capabilities = require("blink.cmp").get_lsp_capabilities()
 		-- 诊断信息的图标
 		vim.diagnostic.config({
 			signs = {
@@ -36,7 +34,6 @@ return {
 		})
 
 		vim.lsp.config("pylsp", {
-			capabilities = capabilities,
 			-- -- uv隔离的虚拟环使用项目根目录下 .venv 里的 Python 解析器来分析代码
 			-- 	on_init = function(client)
 			-- 		local root_dir = client.config.root_dir
@@ -59,11 +56,8 @@ return {
 			settings = {
 				pylsp = {
 					plugins = {
-						-- Ask pylsp/Jedi to include documentation in completion
-						-- labels where possible; Blink resolves the full docs for the
-						-- selected item on demand.
-						jedi_completion = {
-							include_params = true,
+						jedi = {
+							environment = nil,
 						},
 						-- 添加 pycodestyle 配置，修改最大行长度为 120
 						pycodestyle = {
@@ -91,21 +85,18 @@ return {
 		})
 
 		vim.lsp.config("marksman", {
-			capabilities = capabilities,
 			cmd = { "marksman", "server" },
 			filetypes = { "markdown", "markdown.mdx" },
 			root_markers = { ".marksman.toml", ".git" },
 		})
 
 		vim.lsp.config("tclsp", {
-			capabilities = capabilities,
 			cmd = { "tclsp" },
 			filetypes = { "tcl", "sdc", "xdc", "upf" },
 			root_markers = { "tclint.toml", ".tclint", "pyproject.toml", ".git" },
 		})
 
 		vim.lsp.config("verible", {
-			capabilities = capabilities,
 			cmd = {
 				"verible-verilog-ls",
 				"--rules=+explicit-begin,+line-length=length:120,+parameter-name-style=parameter_style:ALL_CAPS;localparam_style:ALL_CAPS",
@@ -126,7 +117,6 @@ return {
 			"selene.yml",
 		}
 		vim.lsp.config("lua_ls", {
-			capabilities = capabilities,
 			cmd = { "lua-language-server" },
 			filetypes = { "lua" },
 			root_markers = vim.fn.has("nvim-0.11.3") == 1 and { root_markers1, root_markers2, { ".git" } }
