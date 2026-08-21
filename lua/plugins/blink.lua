@@ -1,6 +1,22 @@
 local dictionary_path = "~/.config/nvim/lua/snip/dict.dict"
 local custom_snippet_path = vim.fn.stdpath("config") .. "/lua/snip/"
 
+-- Completion source priorities. Higher values rank earlier. These are the
+-- effective weights you normally want to edit.
+local source_score = {
+	minuet = 10,
+	lsp = 7,
+	snippets = 3,
+	dictionary = 2,
+	path = 0,
+	buffer = 9,
+}
+
+-- Blink applies this offset to every completion item whose kind is Snippet.
+-- The snippets provider compensates for it below so its effective weight is
+-- exactly source_score.snippets.
+local snippet_kind_score_offset = -3
+
 local function get_buffer_numbers()
 	local buffers = {}
 	for _, win in ipairs(vim.api.nvim_list_wins()) do
@@ -50,6 +66,7 @@ return {
 		opts = {
 			snippets = {
 				preset = "luasnip",
+				score_offset = snippet_kind_score_offset,
 			},
 			appearance = {
 				nerd_font_variant = "mono",
@@ -189,6 +206,7 @@ return {
 					minuet = {
 						name = "minuet",
 						module = "minuet.blink",
+						score_offset = source_score.minuet,
 						-- Avoid loading Minuet's HTTP backend (and its warning) when
 						-- the endpoint or API-key environment variable is not present.
 						enabled = function()
@@ -204,19 +222,19 @@ return {
 						-- nvim-cmp called this source `nvim_lsp`.
 						name = "nvim_lsp",
 						module = "blink.cmp.sources.lsp",
-						score_offset = 0,
+						score_offset = source_score.lsp,
 						fallbacks = {},
 					},
 					snippets = {
 						-- nvim-cmp called this source `luasnip`.
 						name = "luasnip",
 						module = "blink.cmp.sources.snippets",
-						score_offset = 0,
+						score_offset = source_score.snippets - snippet_kind_score_offset,
 					},
 					path = {
 						name = "path",
 						module = "blink.cmp.sources.path",
-						score_offset = 0,
+						score_offset = source_score.path,
 						-- `cmp.config.sources({ path }, { cmdline })` only queried
 						-- cmdline after path was empty for `:` completion.
 						fallbacks = function()
@@ -229,7 +247,7 @@ return {
 					buffer = {
 						name = "buffer",
 						module = "blink.cmp.sources.buffer",
-						score_offset = 0,
+						score_offset = source_score.buffer,
 						-- The old cmp source used keyword_length = 3. Blink keeps
 						-- this on the provider, not inside provider.opts.
 						min_keyword_length = 3,
@@ -240,6 +258,7 @@ return {
 					dictionary = {
 						name = "dictionary",
 						module = "config.blink_dictionary",
+						score_offset = source_score.dictionary,
 						min_keyword_length = 2,
 						opts = {
 							keyword_length = 2,
