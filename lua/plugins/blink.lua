@@ -4,18 +4,57 @@ local custom_snippet_path = vim.fn.stdpath("config") .. "/lua/snip/"
 -- Completion source priorities. Higher values rank earlier. These are the
 -- effective weights you normally want to edit.
 local source_score = {
-	minuet = 10,
+	buffer = 10,
+	minuet = 8,
 	lsp = 7,
-	snippets = 3,
+	snippets = 6,
 	dictionary = 2,
-	path = 0,
-	buffer = 9,
+	path = 1,
 }
 
 -- Blink applies this offset to every completion item whose kind is Snippet.
 -- The snippets provider compensates for it below so its effective weight is
 -- exactly source_score.snippets.
 local snippet_kind_score_offset = -3
+
+-- Completion-source badges. Keep the lookup keys in sync with
+-- `sources.providers`: ctx.source_id uses those stable provider IDs.
+local source_badges = {
+	minuet = { icon = "🐬", highlight = "BlinkCmpSourceMinuet" },
+	lsp = { icon = "🧠", highlight = "BlinkCmpSourceLsp" },
+	snippets = { icon = "✂️", highlight = "BlinkCmpSourceSnippets" },
+	path = { icon = "📁", highlight = "BlinkCmpSourcePath" },
+	buffer = { icon = "📄", highlight = "BlinkCmpSourceBuffer" },
+	dictionary = { icon = "📚", highlight = "BlinkCmpSourceDictionary" },
+	cmdline = { icon = "💻", highlight = "BlinkCmpSourceCmdline" },
+}
+
+local fallback_source_badge = { icon = "🔹", highlight = "BlinkCmpSourceFallback" }
+
+-- Solarized accent colors remain readable on both its dark and light variants.
+local source_highlight_colors = {
+	BlinkCmpSourceMinuet = "#268bd2",      -- 蓝色
+	BlinkCmpSourceLsp = "#6c71c4",         -- 紫色
+	BlinkCmpSourceSnippets = "#b58900",    -- 黄色
+	BlinkCmpSourcePath = "#859900",        -- 绿色
+	BlinkCmpSourceBuffer = "#2aa198",      -- 青色
+	BlinkCmpSourceDictionary = "#cb4b16",  -- 橙色
+	BlinkCmpSourceCmdline = "#d33682",     -- 洋红
+	BlinkCmpSourceFallback = "#dc322f",    -- 红色
+}
+
+
+local function get_source_badge(ctx)
+	local source_id = string.lower(ctx.source_id or "")
+	local source_name = string.lower(ctx.source_name or "")
+	return source_badges[source_id] or source_badges[source_name] or fallback_source_badge
+end
+
+local function set_source_highlights()
+	for group, color in pairs(source_highlight_colors) do
+		vim.api.nvim_set_hl(0, group, { fg = color, bold = true })
+	end
+end
 
 local function get_buffer_numbers()
 	local buffers = {}
@@ -133,9 +172,21 @@ return {
 							source_name = {
 								width = { max = 18 },
 								text = function(ctx)
-									return "[" .. string.upper(ctx.source_name) .. "]"
+									local badge = get_source_badge(ctx)
+									return badge.icon .. " [" .. string.upper(ctx.source_name) .. "]"
 								end,
-								highlight = "BlinkCmpSource",
+								highlight = function(ctx, text)
+									local badge = get_source_badge(ctx)
+									local name = string.upper(ctx.source_name)
+									local name_start = #(badge.icon .. " [")
+
+									return {
+										-- Keep the brackets in Blink's normal source color.
+										{ 0, #text, group = "BlinkCmpSource" },
+										{ 0, #badge.icon, group = badge.highlight, priority = 20000 },
+										{ name_start, name_start + #name, group = badge.highlight, priority = 20000 },
+									}
+								end,
 							},
 						},
 					},
@@ -291,6 +342,12 @@ return {
 			},
 		},
 		config = function(_, opts)
+			set_source_highlights()
+			vim.api.nvim_create_autocmd("ColorScheme", {
+				group = vim.api.nvim_create_augroup("BlinkCmpSourceHighlights", { clear = true }),
+				callback = set_source_highlights,
+			})
+
 			-- Keep the dictionary settings from the old cmp source.
 			require("cmp_dictionary").setup({
 				paths = { dictionary_path },
