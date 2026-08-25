@@ -192,6 +192,20 @@ vim.api.nvim_create_user_command('YhCsvVsp', split_and_bind, {})
 
 -- pwdfull
 -- BLOCK_BEGIN
+-- 显示当前 buffer 的绝对路径，并复制到系统剪贴板。
+local function yhpwd()
+	local path = vim.fn.expand("%:p")
+	if path == "" then
+		vim.notify("当前 buffer 没有文件路径", vim.log.levels.WARN)
+		return
+	end
+
+	vim.fn.setreg("+", path)
+	vim.api.nvim_echo({ { path, "None" } }, true, {})
+end
+
+-- 用户命令必须以大写字母开头，因此使用 YhPwd 作为实际命令名。
+vim.api.nvim_create_user_command("YhPwd", yhpwd, {})
 -- BLOCK_END
 
 
