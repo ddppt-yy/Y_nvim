@@ -177,6 +177,25 @@
     },
 
 
+    "insert_a_ref_head": {
+        "prefix": "ins_ref_head",
+        "body": [
+            "### 1.2.3 <span id=\"xx_to_oo\">XX to OO</span>"
+        ],
+        "description": "insert_a_reference_head"
+    },
+
+
+    "insert_a_head_ref": {
+        "prefix": "ins_head_ref",
+        "body": [
+            "具体内容请参考 <a href=\"#xx_to_oo\">XX to OO</a>"
+        ],
+        "description": "insert_a_head_reference"
+    },
+
+
+
 
     "header 1": {
         "prefix": "h1",

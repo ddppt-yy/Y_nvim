@@ -33,14 +33,14 @@ local fallback_source_badge = { icon = "🔹", highlight = "BlinkCmpSourceFallba
 
 -- Solarized accent colors remain readable on both its dark and light variants.
 local source_highlight_colors = {
-	BlinkCmpSourceMinuet = "#268bd2",      -- 蓝色
-	BlinkCmpSourceLsp = "#6c71c4",         -- 紫色
-	BlinkCmpSourceSnippets = "#b58900",    -- 黄色
-	BlinkCmpSourcePath = "#859900",        -- 绿色
-	BlinkCmpSourceBuffer = "#2aa198",      -- 青色
-	BlinkCmpSourceDictionary = "#cb4b16",  -- 橙色
-	BlinkCmpSourceCmdline = "#d33682",     -- 洋红
-	BlinkCmpSourceFallback = "#dc322f",    -- 红色
+	BlinkCmpSourceMinuet = "#91d7e3",      -- sky 天蓝
+	BlinkCmpSourceLsp = "#c6a0f6",         -- mauve 淡紫(主源高亮)
+	BlinkCmpSourceSnippets = "#b8c0e0",    -- subtext1 浅灰‑淡紫(低调柔和)
+	BlinkCmpSourcePath = "#a6da95",        -- green 草绿(文件路径)
+	BlinkCmpSourceBuffer = "#8bd5ca",       -- teal 水青色(缓冲区)
+	BlinkCmpSourceDictionary = "#7dc4e4",  -- sapphire 淡天蓝(词典补全，低饱和)
+	BlinkCmpSourceCmdline = "#f5bde6",     -- pink 柔粉(命令行源)
+	BlinkCmpSourceFallback = "#ee99a0",    -- maroon 豆沙红(兜底回退)
 }
 
 
