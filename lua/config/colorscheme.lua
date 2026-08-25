@@ -18,7 +18,8 @@ vim.g.solarized_hitrail    = 1      -- default value is 0
 -- colorscheme catppuccin " catppuccin-latte, catppuccin-frappe, catppuccin-macchiato, catppuccin-mocha
 -- vim.cmd.colorscheme "catppuccin-macchiato"
 vim.opt.background = "dark"
-vim.cmd.colorscheme "solarized"
+-- vim.cmd.colorscheme "solarized"
+vim.cmd.colorscheme "catppuccin-macchiato"
 
 
 

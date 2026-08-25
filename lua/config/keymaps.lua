@@ -73,6 +73,8 @@ map('n', '<leader>cd',  ':cd %:p:h<cr>:pwd<cr>' , opt)
 -- 将普通模式下的 <C-z> 映射为「无操作」
 map('n', '<C-z>', '<nop>', opt)
 
+-- 将普通模式下的 全角冒号 映射为 半角冒号
+map('n', '：', ':', { noremap = true, silent = false })
 
 -- Remap VIM 0 to first non-blank character
 map('n', '0',  '^', opt)
