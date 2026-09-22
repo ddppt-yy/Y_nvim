@@ -29,8 +29,8 @@ return {
 				openai_compatible = {
 					api_key = "MINUET_API_KEY",
 
-					name = "DeepSeek-v4-Flash-fp8",
-					model = "deepseek-v4-flash-fp8",
+					name  = "DeepSeek-v4-Flash",
+					model = "deepseek-v4-flash",
 
 					-- name = "glm-4.7-fp8",
 					-- model = "glm-4.7-fp8",
